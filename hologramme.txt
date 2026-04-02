@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interface Holographique · Miroir Bleu · Silhouette absente</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0c10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Courier New', monospace;
+            padding: 20px;
+        }
+
+        .holo-dashboard {
+            position: relative;
+            width: 1280px;
+            max-width: 100%;
+            background: #0e1219;
+            border: 1px solid #1a4f60;
+            box-shadow: 0 10px 40px rgba(0, 150, 200, 0.2);
+            border-radius: 8px;
+            padding: 24px 32px;
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            gap: 24px;
+            color: #b0e0ff;
+        }
+
+        .panel {
+            background: #0f1a1f;
+            border: 1px solid #1e5e70;
+            border-radius: 4px;
+            padding: 18px 16px;
+            box-shadow: inset 0 0 15px rgba(0, 150, 200, 0.3), 0 2px 0 #0b3f4a;
+            font-size: 13px;
+            backdrop-filter: blur(1px);
+        }
+
+        /* zone centrale - effet miroir holographique */
+        .hologram-area {
+            background: #0a1a24;
+            border: 1px solid #1b6f8a;
+            border-radius: 4px;
+            position: relative;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 180, 230, 0.3);
+        }
+
+        .viewport-header {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: #0d1a22;
+            border-bottom: 1px solid #1b6f8a;
+            color: #7fc5d5;
+            font-size: 12px;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px #0ff;
+        }
+
+        .viewport-header span:first-child {
+            color: #b0f0ff;
+            font-weight: 600;
+        }
+
+        /* VUE MIROIR - disparition de la personne */
+        .holo-view {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: #031016;
+            /* effet de grille holographique bleue */
+            background-image: 
+                linear-gradient(rgba(0, 200, 255, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 200, 255, 0.08) 1px, transparent 1px);
+            background-size: 30px 30px;
+            overflow: hidden;
+        }
+
+        /* effet de miroir/reflet bleu (personne absente) */
+        .mirror-effect {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 50% 40%, rgba(0, 200, 255, 0.15) 0%, transparent 60%);
+            box-shadow: inset 0 0 100px rgba(0, 100, 150, 0.3);
+            pointer-events: none;
+            z-index: 2;
+            mix-blend-mode: screen;
+        }
+
+        /* anneau concentrique (puits de lumière) */
+        .ring {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border: 1px solid rgba(0, 200, 255, 0.2);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 80px rgba(0, 150, 200, 0.3);
+            animation: rotate 20s linear infinite;
+        }
+
+        .ring::after {
+            content: '';
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            border: 1px solid rgba(0, 200, 255, 0.1);
+            border-radius: 50%;
+            top: -100px;
+            left: -100px;
+            box-shadow: 0 0 120px rgba(0, 150, 200, 0.2);
+        }
+
+        @keyframes rotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* socle lumineux bleu (personne absente, juste l'empreinte) */
+        .podium-mirror {
+            position: absolute;
+            bottom: 60px;
+            width: 300px;
+            height: 80px;
+            background: radial-gradient(ellipse at center, #1fa5c5 0%, transparent 80%);
+            opacity: 0.4;
+            border-radius: 50%;
+            filter: blur(15px);
+            z-index: 3;
+            animation: pulse-blue 3s infinite alternate;
+        }
+
+        @keyframes pulse-blue {
+            0% { opacity: 0.3; transform: scale(1); }
+            100% { opacity: 0.7; transform: scale(1.2); }
+        }
+
+        /* ligne de balayage renforcée */
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #0ff, #00ccff, #0ff, transparent);
+            opacity: 0.6;
+            animation: scan-smooth 6s ease-in-out infinite;
+            z-index: 10;
+            box-shadow: 0 0 30px #0ff;
+        }
+
+        @keyframes scan-smooth {
+            0% { top: 0%; opacity: 0; }
+            20% { opacity: 0.6; }
+            50% { top: 80%; opacity: 0.8; }
+            80% { opacity: 0.4; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        /* particules flottantes (effet miroir) */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #0ff;
+            border-radius: 50%;
+            filter: blur(2px);
+            opacity: 0.3;
+            animation: float 8s infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0) translateX(0); opacity: 0.1; }
+            50% { opacity: 0.5; }
+            100% { transform: translateY(-200px) translateX(50px); opacity: 0; }
+        }
+
+        /* section données (inchangée, prête pour capteurs) */
+        .section-title {
+            color: #6fd5ff;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1.5px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #1e6f8a;
+            padding-bottom: 4px;
+            text-shadow: 0 0 5px #0ff;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 0.5px dashed #1a6a80;
+            min-height: 32px;
+            align-items: center;
+        }
+
+        .data-label {
+            color: #7aafc0;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .data-value {
+            color: #d0f5ff;
+            font-family: 'Courier New', monospace;
+            background: #0d2a38;
+            padding: 2px 12px;
+            border-radius: 2px;
+            min-width: 80px;
+            text-align: right;
+            border: 0.5px solid #2fafcf;
+            box-shadow: 0 0 8px rgba(0, 200, 255, 0.3);
+        }
+
+        .metric {
+            margin: 20px 0;
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            color: #9fd5f0;
+            font-size: 12px;
+        }
+
+        .progress-bar-bg {
+            background: #1c3a48;
+            height: 6px;
+            width: 100%;
+            margin: 8px 0;
+            border-radius: 2px;
+        }
+
+        .progress-fill {
+            background: #2fd0ff;
+            width: 0%;
+            height: 6px;
+            border-radius: 2px;
+            box-shadow: 0 0 10px #0ff;
+        }
+
+        .mini-bar {
+            width: 100%;
+            height: 4px;
+            background: #1c3a48;
+            margin: 6px 0 8px;
+        }
+
+        .mini-fill {
+            height: 4px;
+            background: #2fd0ff;
+            width: 0%;
+            box-shadow: 0 0 8px #0ff;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: #103a48;
+            color: #b0f0ff;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            border: 0.5px solid #2fafcf;
+        }
+
+        .grid-footnote {
+            grid-column: 1 / -1;
+            text-align: right;
+            color: #2f8faf;
+            font-size: 10px;
+            border-top: 1px solid #1a5a70;
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+
+        /* particules aléatoires */
+        .particle-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="holo-dashboard">
+        <!-- Panneau gauche (inchangé, données vides) -->
+        <div class="panel unit-panel">
+            <div class="section-title">▌ désignation</div>
+            <div class="data-row"><span class="data-label">UNITÉ</span><span class="data-value">————</span></div>
+            <div class="data-row"><span class="data-label">TYPE</span><span class="data-value">————</span></div>
+            <div class="data-row"><span class="data-label">STATUT</span><span class="data-value">—</span></div>
+
+            <div class="section-title" style="margin-top:24px;">▌ localisation</div>
+            <div class="data-row"><span class="data-label">LAT</span><span class="data-value">——.————</span></div>
+            <div class="data-row"><span class="data-label">LON</span><span class="data-value">——.————</span></div>
+            <div class="data-row"><span class="data-label">ALT</span><span class="data-value">—— m</span></div>
+
+            <div class="section-title" style="margin-top:24px;">▌ intégrité</div>
+            <div class="data-row"><span class="data-label">ARMURE</span><span class="data-value">—%</span></div>
+            <div class="progress-bar-bg"><div class="progress-fill" style="width:0%"></div></div>
+            <div class="data-row"><span class="data-label">SYSTÈMES</span><span class="data-value">——</span></div>
+        </div>
+
+        <!-- Zone centrale - Miroir holographique SANS PERSONNE -->
+        <div class="hologram-area">
+            <div class="viewport-header">
+                <span>HOLO-MIROIR · GHOST-01</span>
+                <span>RÉFLECTIVITÉ 94% · --:--:--</span>
+            </div>
+            <div class="holo-view">
+                <!-- effet miroir bleu dominant -->
+                <div class="mirror-effect"></div>
+                
+                <!-- anneaux concentriques (abstraction) -->
+                <div class="ring"></div>
+                <div class="ring" style="width: 250px; height: 250px; border-color: rgba(0, 200, 255, 0.3); animation-duration: 15s;"></div>
+                
+                <!-- socle lumineux (personne absente) -->
+                <div class="podium-mirror"></div>
+                
+                <!-- ligne de balayage -->
+                <div class="scan-line"></div>
+                
+                <!-- particules flottantes (renforce l'effet miroir) -->
+                <div class="particle-container">
+                    <div class="particle" style="top: 30%; left: 20%;"></div>
+                    <div class="particle" style="top: 60%; left: 70%; animation-delay: 2s;"></div>
+                    <div class="particle" style="top: 40%; left: 40%; animation-delay: 1s;"></div>
+                    <div class="particle" style="top: 80%; left: 30%; animation-delay: 3s;"></div>
+                    <div class="particle" style="top: 20%; left: 80%; animation-delay: 4s;"></div>
+                    <div class="particle" style="top: 70%; left: 10%; animation-delay: 2.5s;"></div>
+                    <div class="particle" style="top: 50%; left: 60%; animation-delay: 0.5s;"></div>
+                </div>
+
+                <!-- indicateur de focalisation (vide) -->
+                <div style="position:absolute; bottom:30px; right:30px; color:#6fd5ff; font-size:10px; background:#0f2a38; padding:4px 12px; border-radius:20px; border:0.5px solid #2fafcf; backdrop-filter:blur(4px); z-index:20;">
+                    FOCUS: <span class="data-value" style="background:transparent; padding:0 4px;">—</span> · MIROIR ACTIVÉ
+                </div>
+            </div>
+            <!-- pied zone (tracking vide) -->
+            <div style="border-top:1px solid #1b6f8a; padding:8px 16px; display:flex; gap:30px; color:#7fc5d5; font-size:11px;">
+                <div>🔍 DIST: <span class="data-value" style="background:transparent;">——</span> m</div>
+                <div>📡 RÉFL: <span class="data-value" style="background:transparent;">——</span>%</div>
+                <div>⚡ IFF: <span class="data-value">————</span></div>
+            </div>
+        </div>
+
+        <!-- Panneau droit (inchangé) -->
+        <div class="panel metric-panel">
+            <div class="section-title" style="margin-top:0;">▌ analyse miroir</div>
+            <div class="metric">
+                <div class="metric-header"><span>Absorption</span><span class="data-value">——</span></div>
+                <div class="mini-bar"><div class="mini-fill" style="width:0%"></div></div>
+            </div>
+            <div class="metric">
+                <div class="metric-header"><span>Réflectivité</span><span class="data-value">——%</span></div>
+                <div class="mini-bar"><div class="mini-fill" style="width:0%"></div></div>
+            </div>
+            <div class="metric">
+                <div class="metric-header"><span>Longueur onde</span><span class="data-value">—— nm</span></div>
+                <div class="mini-bar"><div class="mini-fill" style="width:0%"></div></div>
+            </div>
+
+            <div class="section-title" style="margin-top:24px;">▌ signature</div>
+            <div class="data-row"><span class="data-label">CIBLES</span><span class="data-value">——</span></div>
+            <div class="data-row"><span class="data-label">RÉFLECTIVITÉ</span><span class="data-value">——</span></div>
+            <div style="margin:16px 0;">
+                <span class="status-badge">🌀 MIROIR: ACTIF</span>
+                <span class="status-badge" style="margin-left:6px;">👤 PERSONNE: ABSENTE</span>
+            </div>
+        </div>
+
+        <div class="grid-footnote">
+            <span>HOLOGRAMME MIROIR · SILHOUETTE ABSENTE · CHAMPS PRÊTS POUR CAPTEURS</span>
+        </div>
+    </div>
+
+    <div style="position:fixed; bottom:8px; right:12px; color:#2fafcf; font-size:9px; opacity:0.7;">EFFET MIROIR BLEU · PERSONNE DISPARUE</div>
+</body>
+</html>

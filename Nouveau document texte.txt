@@ -1,0 +1,3554 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAT-C4ISR · CENTRE DE COMMANDEMENT</title>
+    
+    <!-- Polices -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet pour les cartes -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        /* ===== VARIABLES ===== */
+        :root {
+            --neon-green: #00ff00;
+            --dark-green: #00cc00;
+            --light-green: #00ff88;
+            --dark-bg: #0a0a0a;
+            --panel-bg: rgba(0, 20, 0, 0.95);
+            --alert-red: #ff0000;
+            --warning-yellow: #ffff00;
+            --info-blue: #00aaff;
+            --cyber-blue: #00ffff;
+            --military-green: #556B2F;
+            --military-dark: #3A4A1F;
+            --military-light: #6B8E23;
+        }
+        
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--dark-bg);
+            color: var(--neon-green);
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        /* ===== MODALES - CORRECTION COMPLÈTE ===== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;  /* IMPORTANT: Hidden par défaut */
+    justify-content: center;
+    align-items: center;
+    z-index: 5000;
+    backdrop-filter: blur(5px);
+}
+
+.modal.active,
+.modal[style*="display: flex"] {
+    display: flex !important;
+}
+
+.modal-content {
+    background: rgba(0, 15, 0, 0.95);
+    border: 2px solid var(--neon-green);
+    border-radius: 12px;
+    padding: 25px;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: var(--neon-green);
+    box-shadow: 0 0 50px rgba(0, 255, 0, 0.3);
+}
+
+.modal-content.wide {
+    max-width: 800px;
+}
+
+.modal-content.medium {
+    max-width: 600px;
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: var(--cyber-blue);
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--cyber-blue);
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    background: rgba(0, 20, 0, 0.8);
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-width: 2px;
+    box-shadow: 0 0 15px var(--neon-green);
+    background: rgba(0, 30, 0, 0.9);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    justify-content: flex-end;
+}
+
+.btn-primary,
+.btn-cancel {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid var(--neon-green);
+    background: transparent;
+    color: var(--neon-green);
+    cursor: pointer;
+    border-radius: 6px;
+    font-weight: bold;
+    transition: all 0.3s;
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+.btn-primary:hover {
+    background: var(--neon-green);
+    color: #000;
+    box-shadow: 0 0 20px var(--neon-green);
+}
+
+.btn-cancel:hover {
+    background: rgba(0, 255, 0, 0.1);
+}
+        /* ===== BACKGROUND ===== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle at 10% 20%, rgba(0, 255, 0, 0.2) 0px, transparent 2px);
+            background-size: 150px 150px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* ===== LIGNE DE BALAYAGE ===== */
+        .scan-line-vertical {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(0, 255, 0, 0.02) 10%, 
+                rgba(0, 255, 0, 0.1) 20%, 
+                rgba(0, 255, 255, 0.15) 30%, 
+                rgba(0, 255, 0, 0.1) 40%, 
+                rgba(0, 255, 0, 0.02) 50%, 
+                transparent 60%);
+            transform: translateX(-100%);
+            animation: scanVertical 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            pointer-events: none;
+            z-index: 9998;
+        }
+        
+        @keyframes scanVertical {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(50%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; border: 2px solid var(--neon-green); }
+        ::-webkit-scrollbar-thumb { background: var(--neon-green); border-radius: 0; }
+        
+        #app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        /* ===== TOP BAR ===== */
+        .top-bar {
+            background: rgba(0, 15, 0, 0.95);
+            border: 2px solid var(--neon-green);
+            backdrop-filter: blur(12px);
+            padding: 10px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 12px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        
+        .title { font-family: 'Orbitron', sans-serif; font-size: 24px; letter-spacing: 4px; }
+        .title span { color: #fff; }
+        
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            background: rgba(0, 20, 0, 0.6);
+            padding: 8px 20px;
+            border: 1px solid var(--neon-green);
+            border-radius: 30px;
+        }
+        
+        .led {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--neon-green);
+            box-shadow: 0 0 15px var(--neon-green);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse { 50% { opacity: 0.5; } }
+        
+        .env-selector {
+            display: flex;
+            gap: 5px;
+            margin-left: 20px;
+        }
+        
+        .env-btn {
+            padding: 6px 15px;
+            border: 1px solid var(--neon-green);
+            background: transparent;
+            color: var(--neon-green);
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 20px;
+        }
+        
+        .env-btn.active { background: var(--neon-green); color: #000; }
+        .env-btn.prod.disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .global-alerts-badge {
+            position: relative;
+            font-size: 20px;
+            color: #ff4444;
+            cursor: pointer;
+        }
+        
+        .alert-badge-number {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff0000;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid var(--neon-green);
+            overflow: hidden;
+        }
+        
+        .avatar-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #006600, #00aa00);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+        
+        .user-name { font-size: 14px; font-weight: bold; color: var(--neon-green); }
+        .user-role { font-size: 11px; color: var(--cyber-blue); }
+        
+        /* ===== ONGLETS ===== */
+        .tabs-container {
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 15, 0, 0.9);
+            border: 2px solid var(--neon-green);
+            border-radius: 12px;
+            padding: 8px 15px;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        
+        .tab-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            font-size: 14px;
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .tab-item:hover { background: rgba(0, 255, 0, 0.15); }
+        .tab-item.active { background: var(--neon-green); color: #000; }
+        
+        /* ===== CONTENU ===== */
+        .tab-content {
+            flex: 1;
+            background: rgba(0, 10, 0, 0.85);
+            border: 2px solid var(--neon-green);
+            backdrop-filter: blur(8px);
+            padding: 20px;
+            overflow-y: auto;
+            border-radius: 12px;
+            display: none;
+            z-index: 10;
+        }
+        
+        .tab-content.active { display: block; }
+        
+        /* ===== WIDGETS ===== */
+        .widget {
+            background: rgba(0, 20, 0, 0.7);
+            border: 2px solid var(--neon-green);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        .badge {
+            background: var(--neon-green);
+            color: #000;
+            padding: 4px 12px;
+            font-size: 11px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .widget-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        /* ===== ÉLÉMENTS ===== */
+        .event-item {
+            display: grid;
+            grid-template-columns: 80px 100px 1fr;
+            gap: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+            font-size: 11px;
+        }
+        
+        .unit-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 15px;
+            padding: 12px;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        
+        .unit-item:hover { border-color: var(--neon-green); background: rgba(0, 255, 0, 0.1); }
+        
+        .unit-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-top: 5px;
+        }
+        
+        .unit-status.online { background: var(--neon-green); box-shadow: 0 0 15px var(--neon-green); }
+        .unit-status.warning { background: #ff8800; box-shadow: 0 0 15px #ff8800; }
+        .unit-status.critical { background: #ff4444; box-shadow: 0 0 15px #ff4444; }
+        
+        .unit-name { font-weight: bold; font-size: 13px; color: var(--neon-green); }
+        
+        .unit-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 10px;
+            margin-top: 5px;
+        }
+        
+        .network-item {
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            padding: 12px;
+            cursor: pointer;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .network-item:hover { background: rgba(0, 255, 0, 0.15); }
+        .network-item.selected { background: rgba(0, 255, 0, 0.25); border-color: var(--neon-green); border-width: 2px; }
+        
+        .network-type { font-size: 16px; font-weight: bold; color: var(--neon-green); }
+        .network-stats { font-size: 10px; display: flex; justify-content: space-between; margin-top: 5px; }
+        
+        .alert-item {
+            border-left: 4px solid;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            cursor: pointer;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .alert-item.critical { border-left-color: #ff4444; background: rgba(255, 68, 68, 0.1); }
+        .alert-item.warning { border-left-color: #ff8800; }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0%); opacity: 1; }
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.15);
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+        }
+        
+        .info-value { font-weight: bold; color: var(--neon-green); }
+        
+        .cyber-button {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        
+        .cyber-button:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 20px var(--neon-green); }
+        
+        .logout-btn {
+            width: 100%;
+            margin-top: 15px;
+            padding: 12px;
+            background: transparent;
+            border: 2px solid #ff4444;
+            color: #ff4444;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        
+        .logout-btn:hover { background: rgba(255, 68, 68, 0.1); box-shadow: 0 0 25px #ff4444; }
+        
+        /* ===== LOADING ===== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s;
+        }
+        
+        .loading-text {
+            font-size: 32px;
+            letter-spacing: 12px;
+            animation: pulse 2s infinite;
+        }
+        
+        .loading-bar {
+            width: 500px;
+            height: 4px;
+            background: #1a1a1a;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: var(--neon-green);
+            animation: loading 2s ease forwards;
+        }
+        
+        @keyframes loading { to { width: 100%; } }
+        
+        /* ===== GRILLES SPÉCIFIQUES ===== */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .units-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .sensors-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .carto-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .radar-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 15px;
+            height: 100%;
+        }
+        
+        .mission-container {
+            display: grid;
+            grid-template-columns: 350px 1fr 300px;
+            gap: 20px;
+            height: calc(100vh - 250px);
+        }
+        
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        
+        .admin-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        /* ===== CARTES ===== */
+        #mission-map, #world-map {
+            height: 100%;
+            width: 100%;
+            border-radius: 12px;
+        }
+        
+        #radar-canvas {
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+        }
+        
+        /* ===== PANNEAU DÉTAILS UNITÉ ===== */
+        .biometric-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            height: 450px;
+            background: rgba(0, 20, 0, 0.95);
+            border: 2px solid var(--neon-green);
+            border-radius: 12px;
+            padding: 15px;
+            display: none;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px var(--neon-green);
+            overflow-y: auto;
+        }
+        
+        .draw-tools {
+            position: absolute;
+            background: rgba(0, 20, 0, 0.9);
+            border: 2px solid var(--neon-green);
+            border-radius: 12px;
+            padding: 10px;
+            display: flex;
+            gap: 5px;
+            z-index: 1000;
+            flex-wrap: wrap;
+        }
+        
+        .draw-btn {
+            padding: 8px 12px;
+            background: transparent;
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .draw-btn:hover { background: rgba(0, 255, 0, 0.2); }
+        
+        /* ===== TABLES ===== */
+        .units-table, .sensors-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        .units-table th, .sensors-table th {
+            position: sticky;
+            top: 0;
+            background: rgba(0, 30, 0, 0.9);
+            padding: 12px;
+            text-align: left;
+            color: var(--cyber-blue);
+            font-size: 11px;
+            border-bottom: 2px solid var(--neon-green);
+        }
+        
+        .units-table td, .sensors-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+        }
+        
+        .unit-action-btn {
+            padding: 5px 10px;
+            background: transparent;
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        
+        .unit-action-btn.disconnect { border-color: #ff4444; color: #ff4444; }
+        
+        /* ===== ALERTES GLOBALES ===== */
+        .alerts-global-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: rgba(20, 0, 0, 0.95);
+            border: 2px solid #ff4444;
+            border-radius: 12px;
+            z-index: 400000;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 50px rgba(255, 68, 68, 0.5);
+        }
+        
+        .alerts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #ff4444;
+            color: #ff4444;
+            font-weight: bold;
+        }
+        
+        .alerts-header button {
+            background: transparent;
+            border: none;
+            color: #ff4444;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .alerts-content {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        /* ===== ANALYSE PRÉDICTIVE ===== */
+        .predictive-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .prediction-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--neon-green);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        
+        .sensor-health {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .health-excellent { background: var(--neon-green); box-shadow: 0 0 10px var(--neon-green); }
+        .health-good { background: var(--cyber-blue); }
+        .health-warning { background: #ff8800; box-shadow: 0 0 10px #ff8800; }
+        .health-critical { background: #ff4444; box-shadow: 0 0 10px #ff4444; }
+
+        /* ===== ÉCRAN DE CONNEXION MILITAIRE ===== */
+        #login-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #001a00 0%, #000000 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            z-index: 200000;
+        }
+
+        #login-screen::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background-image: 
+                linear-gradient(#004400 1px, transparent 1px),
+                linear-gradient(90deg, #004400 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: perspective(500px) rotateX(60deg) translateY(0);
+            animation: grid-move 20s linear infinite;
+            opacity: 0.3;
+            z-index: 1;
+        }
+
+        @keyframes grid-move {
+            from { transform: perspective(500px) rotateX(60deg) translateY(0); }
+            to { transform: perspective(500px) rotateX(60deg) translateY(50px); }
+        }
+
+        .login-box {
+            position: relative;
+            z-index: 10;
+            background: rgba(0, 15, 0, 0.92);
+            padding: 45px 40px;
+            border: 2px solid var(--neon-green);
+            box-shadow: 0 0 50px rgba(0, 255, 0, 0.3);
+            width: 450px;
+            clip-path: polygon(3% 0, 97% 0, 100% 3%, 100% 97%, 97% 100%, 3% 100%, 0 97%, 0 3%);
+            backdrop-filter: blur(12px);
+        }
+
+        .login-avatar {
+            width: 120px;
+            height: 120px;
+            border: 3px solid var(--neon-green);
+            border-radius: 50%;
+            margin: 0 auto 25px;
+            position: relative;
+            overflow: hidden;
+            background: #002200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 30px var(--neon-green);
+        }
+
+        .login-avatar::after {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: var(--neon-green);
+            top: 0;
+            left: 0;
+            animation: avatar-scan 2.5s ease-in-out infinite;
+            box-shadow: 0 0 15px var(--neon-green);
+            z-index: 2;
+        }
+
+        @keyframes avatar-scan {
+            0%, 100% { top: 0%; }
+            50% { top: 100%; }
+        }
+
+        .login-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .login-avatar i {
+            font-size: 60px;
+            color: var(--neon-green);
+        }
+
+        .login-title .main {
+            color: var(--neon-green);
+            font-size: 28px;
+            text-align: center;
+            letter-spacing: 4px;
+            text-shadow: 0 0 15px var(--neon-green);
+            margin-bottom: 8px;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .login-title .sub {
+            color: #00aa00;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 35px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+            padding-bottom: 15px;
+        }
+
+        #login-screen .form-group {
+            margin-bottom: 25px;
+        }
+
+        #login-screen .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--cyber-blue);
+            font-size: 13px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        #login-screen .form-group label i {
+            margin-right: 8px;
+            color: var(--neon-green);
+        }
+
+        #login-screen .form-group input {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(0, 30, 0, 0.8);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            border-radius: 6px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 15px;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        #login-screen .form-group input:focus {
+            outline: none;
+            border-width: 2px;
+            box-shadow: 0 0 25px var(--neon-green);
+            background: rgba(0, 40, 0, 0.9);
+        }
+
+        #login-screen .form-group input::placeholder {
+            color: rgba(0, 255, 0, 0.3);
+            font-size: 13px;
+        }
+
+        #login-screen .cyber-button {
+            width: 100%;
+            padding: 16px;
+            background: transparent;
+            border: 2px solid var(--neon-green);
+            color: var(--neon-green);
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            letter-spacing: 3px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #login-screen .cyber-button:hover {
+            background: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 30px var(--neon-green);
+            transform: translateY(-2px);
+        }
+
+        #login-screen .cyber-button#show-register-btn {
+            border-color: #006600;
+            color: #00aa00;
+            font-size: 14px;
+            letter-spacing: 2px;
+            margin-bottom: 0;
+        }
+
+        #login-screen .cyber-button#show-register-btn:hover {
+            background: #006600;
+            color: #fff;
+            border-color: #00ff00;
+        }
+
+        #login-error {
+            color: #ff4444;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            min-height: 20px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px #ff4444;
+        }
+
+        /* ===== OBJECTIFS MISSION ===== */
+        .objective-item {
+            padding: 8px;
+            border-left: 3px solid #00ff00;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            background: rgba(0, 20, 0, 0.4);
+            border-radius: 4px;
+        }
+        
+        .objective-item input[type="checkbox"] {
+            margin-right: 10px;
+            accent-color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <!-- LIGNE DE BALAYAGE -->
+    <div class="scan-line-vertical"></div>
+    
+    <!-- LOADING -->
+    <div class="loading-overlay" id="loading">
+        <div>
+            <div class="loading-text">FAT-C4ISR</div>
+            <div style="margin: 20px 0;">CENTRE DE COMMANDEMENT</div>
+            <div class="loading-bar"></div>
+        </div>
+    </div>
+    
+    <!-- APPLICATION PRINCIPALE -->
+    <div id="app" style="display: none;">
+        <!-- TOP BAR -->
+        <div class="top-bar">
+            <div class="title">FAT<span>-C4ISR</span></div>
+            
+            <div class="status-badge">
+                <div class="led"></div>
+                <span>SYSTÈME ACTIF</span>
+                <div class="env-selector">
+                    <button class="env-btn dev active" data-env="dev">DEV</button>
+                    <button class="env-btn prod disabled" data-env="prod">PROD</button>
+                </div>
+            </div>
+            
+            <div class="global-alerts-badge" id="global-alerts-badge">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="global-alerts-count" class="alert-badge-number">0</span>
+            </div>
+            
+            <div class="user-section">
+                <div class="user-avatar">
+                    <div class="avatar-placeholder">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <span class="user-name" id="user-name">COMMANDANT</span>
+                    <span class="user-role" id="user-role">ADMIN · EN LIGNE</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ONGLETS -->
+        <div class="tabs-container">
+            <div class="tab-item active" data-tab="dashboard"><i class="fas fa-tachometer-alt"></i> DASHBOARD</div>
+            <div class="tab-item" data-tab="mission"><i class="fas fa-crosshairs"></i> MISSION</div>
+            <div class="tab-item" data-tab="units"><i class="fas fa-users"></i> UNITÉS</div>
+            <div class="tab-item" data-tab="cartography"><i class="fas fa-map-marked-alt"></i> CARTOGRAPHIE</div>
+            <div class="tab-item" data-tab="sensors"><i class="fas fa-microchip"></i> CAPTEURS</div>
+            <div class="tab-item" data-tab="radar"><i class="fas fa-satellite"></i> RADAR</div>
+            <div class="tab-item" data-tab="admin"><i class="fas fa-user-cog"></i> ADMIN</div>
+            <div class="tab-item" data-tab="analytics"><i class="fas fa-chart-line"></i> ANALYTIQUE</div>
+        </div>
+        
+        <!-- ========== ONGLET DASHBOARD ========== -->
+        <div class="tab-content active" id="dashboard-tab">
+            <div class="dashboard-grid">
+                <!-- Journal d'événements -->
+                <div class="widget" style="height: 400px; display: flex; flex-direction: column;">
+                    <div class="widget-header">
+                        <span><i class="fas fa-clipboard-list"></i> JOURNAL</span>
+                        <span class="badge" id="events-count">0</span>
+                    </div>
+                    <div class="widget-content" id="events-list" style="overflow-y: auto; max-height: 340px; padding-right: 5px;"></div>
+                </div>
+                
+                <!-- Alertes critiques -->
+                <div class="widget" style="height: 400px; display: flex; flex-direction: column;">
+                    <div class="widget-header">
+                        <span><i class="fas fa-exclamation-triangle"></i> ALERTES</span>
+                        <div style="display: flex; gap: 5px;">
+                            <span class="badge" id="alerts-count">0</span>
+                            <button class="draw-btn" id="clear-old-alerts-btn" style="font-size:10px; padding:2px 5px;">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="widget-content" id="alerts-list" style="overflow-y: auto; max-height: 340px; padding-right: 5px;"></div>
+                </div>
+                
+                <!-- Statut des unités -->
+                <div class="widget" style="height: 350px;">
+                    <div class="widget-header">
+                        <span><i class="fas fa-vest"></i> UNITÉS</span>
+                        <span class="badge" id="units-count">0</span>
+                    </div>
+                    <div class="widget-content">
+                        <input type="text" id="dashboard-search" placeholder="Rechercher..." 
+                               style="background:rgba(0,0,0,0.5); border:1px solid var(--neon-green); color:var(--neon-green); padding:5px; margin-bottom:10px; width:100%;">
+                        <div id="units-list"></div>
+                    </div>
+                </div>
+                
+                <!-- Communication hybride -->
+                <div class="widget" style="height: 350px;">
+                    <div class="widget-header">
+                        <span><i class="fas fa-satellite"></i> COMMUNICATION</span>
+                        <span class="badge" id="active-network">5G</span>
+                    </div>
+                    <div class="widget-content">
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px;" id="network-grid">
+                            <div class="network-item" data-network="5G">
+                                <div class="network-type">5G</div>
+                                <div class="network-stats">
+                                    <span>Signal: <span id="signal-5g">94%</span></span>
+                                    <span>Latence: <span id="latency-5g">46ms</span></span>
+                                </div>
+                            </div>
+                            <div class="network-item" data-network="4G">
+                                <div class="network-type">4G</div>
+                                <div class="network-stats">
+                                    <span>Signal: <span id="signal-4g">77%</span></span>
+                                    <span>Latence: <span id="latency-4g">62ms</span></span>
+                                </div>
+                            </div>
+                            <div class="network-item" data-network="LoRa">
+                                <div class="network-type">LoRa</div>
+                                <div class="network-stats">
+                                    <span>Signal: <span id="signal-lora">95%</span></span>
+                                    <span>Latence: <span id="latency-lora">165ms</span></span>
+                                </div>
+                            </div>
+                            <div class="network-item" data-network="SAT">
+                                <div class="network-type">SAT</div>
+                                <div class="network-stats">
+                                    <span>Signal: <span id="signal-sat">68%</span></span>
+                                    <span>Latence: <span id="latency-sat">312ms</span></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="network-details" style="border:1px solid var(--neon-green); padding:15px;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span>Réseau:</span>
+                                <span style="color:var(--neon-green);" id="selected-network-name">5G PRIMAIRE</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                                <span>Latence:</span>
+                                <span id="selected-latency">46 ms</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between;">
+                                <span>Signal:</span>
+                                <span id="selected-signal">94%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Monitoring central -->
+                <div class="widget" style="height: 300px;">
+                    <div class="widget-header">
+                        <span><i class="fas fa-chart-line"></i> MONITORING</span>
+                        <span class="badge">CAPTEURS</span>
+                    </div>
+                    <div class="widget-content" id="monitoring-content"></div>
+                </div>
+                
+                <!-- Commandant Admin -->
+                <div class="widget" style="height: 350px;">
+                    <div class="widget-header">
+                        <span><i class="fas fa-user-shield"></i> COMMANDANT</span>
+                    </div>
+                    <div class="widget-content">
+                        <div class="info-row">Commandant: <span class="info-value" id="admin-name">Georges Donnavan</span></div>
+                        <div class="info-row">Rôle: <span class="info-value" style="color:gold;" id="admin-role">ADMIN</span></div>
+                        <div class="info-row">Dernière connexion: <span class="info-value" id="admin-last-login">14:32:45</span></div>
+                        <div class="info-row">2FA: <span class="info-value" style="color:#0f0;" id="admin-2fa">Activé</span></div>
+                        
+                        <!-- SECTION SIMULATION -->
+                        <div style="border:1px solid #0f0; padding:10px; margin:10px 0;">
+                            <div style="color:var(--cyber-blue); margin-bottom:5px;">
+                                <i class="fas fa-flask"></i> SIMULATION
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <button class="cyber-button" id="sim-start-btn" style="flex:2;">▶ AUTO</button>
+                                <button class="cyber-button" id="sim-stop-btn" style="flex:1;">⏹ STOP</button>
+                                <button class="cyber-button" id="sim-once-btn" style="flex:1;">↻ 1x</button>
+                            </div>
+                            <div style="font-size:10px; color:#888; margin-top:5px;" id="sim-status">⏸️ Simulation arrêtée</div>
+                        </div>
+                        
+                        <button class="cyber-button" id="change-password-btn">Changer mot de passe</button>
+                        <button class="cyber-button" id="setup-2fa-btn">Configurer 2FA</button>
+                        <button class="cyber-button" id="view-logs-btn">Voir les logs</button>
+                        <button class="cyber-button" id="manage-users-btn">Gérer les utilisateurs</button>
+                        <button class="logout-btn" id="logout-btn">DÉCONNEXION</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ========== ONGLET MISSION PROFESSIONNEL ========== -->
+        <div class="tab-content" id="mission-tab">
+            <!-- Barre d'outils principale -->
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; background: rgba(0,20,0,0.7); border: 2px solid var(--neon-green); border-radius: 16px; padding: 15px; flex-wrap: wrap;">
+                <button class="cyber-button" id="new-mission-btn" style="width: auto; padding: 10px 25px;">
+                    <i class="fas fa-plus-circle"></i> NOUVELLE MISSION
+                </button>
+                <button class="cyber-button" id="load-mission-btn" style="width: auto; padding: 10px 25px;">
+                    <i class="fas fa-folder-open"></i> CHARGER
+                </button>
+                <button class="cyber-button" id="save-mission-btn" style="width: auto; padding: 10px 25px;">
+                    <i class="fas fa-save"></i> SAUVEGARDER
+                </button>
+                <button class="cyber-button" id="export-mission-btn" style="width: auto; padding: 10px 25px;">
+                    <i class="fas fa-file-export"></i> EXPORTER
+                </button>
+                
+                <div style="margin-left: auto; display: flex; gap: 15px; align-items: center;">
+                    <div class="badge" id="active-mission-name">AUCUNE MISSION</div>
+                    <div class="led"></div>
+                </div>
+            </div>
+            
+            <!-- Grille principale -->
+            <div class="mission-container">
+                
+                <!-- ===== COLONNE GAUCHE : INFORMATIONS MISSION ===== -->
+                <div style="display: flex; flex-direction: column; gap: 20px; overflow-y: auto;">
+                    
+                    <!-- Fiche mission -->
+                    <div class="widget">
+                        <div class="widget-header">
+                            <span><i class="fas fa-info-circle"></i> FICHE MISSION</span>
+                            <span class="badge" id="mission-status">BROUILLON</span>
+                        </div>
+                        <div class="widget-content">
+                            <div class="form-group">
+                                <label>NOM DE MISSION</label>
+                                <input type="text" id="mission-name" class="form-control" value="OPÉRATION ALPHA">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>TYPE</label>
+                                <select id="mission-type" class="form-control">
+                                    <option value="recon">🔭 RECONNAISSANCE</option>
+                                    <option value="assault">⚔️ ASSAUT</option>
+                                    <option value="defense">🛡️ DÉFENSE</option>
+                                    <option value="extraction">🚁 EXTRACTION</option>
+                                    <option value="patrol">👣 PATROUILLE</option>
+                                    <option value="medevac">🏥 MEDEVAC</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>PRIORITÉ</label>
+                                <select id="mission-priority" class="form-control">
+                                    <option value="low">🟢 BASSE</option>
+                                    <option value="medium" selected>🟡 MOYENNE</option>
+                                    <option value="high">🟠 HAUTE</option>
+                                    <option value="critical">🔴 CRITIQUE</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>DATE/HEURE</label>
+                                <input type="text" id="mission-datetime" class="form-control" value="2024-03-04 14:30" readonly>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>DESCRIPTION</label>
+                                <textarea id="mission-description" class="form-control" rows="3">Objectif: Sécuriser le périmètre nord</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Unités affectées -->
+                    <div class="widget" style="height: 250px;">
+                        <div class="widget-header">
+                            <span><i class="fas fa-users"></i> UNITÉS AFFECTÉES</span>
+                            <span class="badge" id="assigned-units-count">0</span>
+                        </div>
+                        <div class="widget-content" id="assigned-units-list">
+                            <div class="text-center">Aucune unité affectée</div>
+                        </div>
+                        <button class="cyber-button" id="assign-units-btn" style="margin-top: 10px;">
+                            <i class="fas fa-user-plus"></i> AFFECTER DES UNITÉS
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- ===== COLONNE CENTRALE : CARTE TACTIQUE ===== -->
+                <div style="position: relative; border: 2px solid var(--neon-green); border-radius: 16px; overflow: hidden;">
+                    <div id="mission-map" style="height: 100%; width: 100%;"></div>
+                    
+                    <!-- Outils de dessin avancés -->
+                    <div class="draw-tools" style="top: 20px; left: 20px; max-width: 400px; background: rgba(0,20,0,0.95);">
+                        <button class="draw-btn" data-tool="select" title="Sélectionner">
+                            <i class="fas fa-mouse-pointer"></i>
+                        </button>
+                        <button class="draw-btn" data-tool="polygon" title="Zone d'opération">
+                            <i class="fas fa-draw-polygon"></i> ZONE
+                        </button>
+                        <button class="draw-btn" data-tool="rectangle" title="Zone d'exclusion">
+                            <i class="fas fa-square"></i> EXCL
+                        </button>
+                        <button class="draw-btn" data-tool="circle" title="Rayon d'action">
+                            <i class="fas fa-circle"></i> RAYON
+                        </button>
+                        <button class="draw-btn" data-tool="line" title="Itinéraire">
+                            <i class="fas fa-route"></i> ROUTE
+                        </button>
+                        <button class="draw-btn" data-tool="marker" title="Point d'intérêt">
+                            <i class="fas fa-map-pin"></i> POI
+                        </button>
+                        <button class="draw-btn" data-tool="measure" title="Mesurer">
+                            <i class="fas fa-ruler"></i> 📏
+                        </button>
+                        <button class="draw-btn" data-tool="clear" title="Effacer tout">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Légende -->
+                    <div class="draw-tools" style="bottom: 20px; left: 20px; top: auto; flex-direction: column; background: rgba(0,20,0,0.9);">
+                        <span style="color: var(--cyber-blue); margin-bottom: 5px;">LÉGENDE</span>
+                        <div><span style="color: #00ff00;">●</span> Unités amies</div>
+                        <div><span style="color: #ff4444;">●</span> Objectifs</div>
+                        <div><span style="color: #ffff00;">▣</span> Zone d'opération</div>
+                        <div><span style="color: #ff8800;">⬤</span> Danger</div>
+                    </div>
+                    
+                    <!-- Coordonnées en temps réel -->
+                    <div class="draw-tools" style="bottom: 20px; right: 20px; left: auto; top: auto; background: rgba(0,20,0,0.9);">
+                        <div id="mouse-coords">Lat: --, Lng: --</div>
+                    </div>
+                </div>
+                
+                <!-- ===== COLONNE DROITE : OBJECTIFS & LOGS ===== -->
+                <div style="display: flex; flex-direction: column; gap: 20px; overflow-y: auto;">
+                    
+                    <!-- Objectifs de mission -->
+                    <div class="widget" style="height: 300px;">
+                        <div class="widget-header">
+                            <span><i class="fas fa-bullseye"></i> OBJECTIFS</span>
+                            <button class="draw-btn" id="add-objective-btn">+</button>
+                        </div>
+                        <div class="widget-content" id="objectives-list">
+                            <div class="objective-item">
+                                <input type="checkbox"> Sécuriser le pont
+                            </div>
+                            <div class="objective-item">
+                                <input type="checkbox"> Établir périmètre
+                            </div>
+                            <div class="objective-item">
+                                <input type="checkbox"> Neutraliser menace
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Chronologie -->
+                    <div class="widget" style="height: 200px;">
+                        <div class="widget-header">
+                            <span><i class="fas fa-clock"></i> CHRONOLOGIE</span>
+                        </div>
+                        <div class="widget-content" id="mission-timeline">
+                            <div class="event-item">14:30 - Début mission</div>
+                            <div class="event-item">14:45 - Déploiement</div>
+                            <div class="event-item">15:00 - Contact ennemi</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes tactiques -->
+                    <div class="widget" style="height: 150px;">
+                        <div class="widget-header">
+                            <span><i class="fas fa-clipboard"></i> NOTES</span>
+                        </div>
+                        <textarea class="form-control" rows="3" placeholder="Notes tactiques..."></textarea>
+                    </div>
+                    
+                    <!-- Boutons d'action -->
+                    <button class="cyber-button" id="start-mission-btn" style="background: #00ff00; color: black;">
+                        <i class="fas fa-play"></i> DÉMARRER MISSION
+                    </button>
+                    <button class="cyber-button" id="abort-mission-btn" style="border-color: #ff4444; color: #ff4444;">
+                        <i class="fas fa-stop"></i> ABANDONNER
+                    </button>
+                </div>
+            </div>
+            
+            <!-- MODALE AFFECTATION UNITÉS -->
+            <div class="modal" id="assign-units-modal">
+                <div class="modal-content" style="width: 600px;">
+                    <h3 style="color:var(--cyber-blue);">AFFECTER DES UNITÉS</h3>
+                    <div style="max-height: 400px; overflow-y: auto; margin: 20px 0;" id="available-units-list">
+                        <!-- Liste générée dynamiquement -->
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-cancel" id="close-assign-modal">ANNULER</button>
+                        <button class="btn-primary" id="assign-selected-units-btn">AFFECTER</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+                <!-- ========== ONGLET UNITÉS ========== -->
+        <div class="tab-content" id="units-tab">
+            <div class="units-grid">
+                <div class="widget" style="grid-column: span 3;">
+                    <div class="widget-header">
+                        <span>LISTE DES UNITÉS (15)</span>
+                        <input type="text" id="units-search" placeholder="Rechercher..." class="form-control" style="width:200px;">
+                    </div>
+                    <div class="widget-content" style="overflow-x: auto;">
+                        <table class="units-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nom</th>
+                                    <th>Statut</th>
+                                    <th>Batterie</th>
+                                    <th>Temp</th>
+                                    <th>HR</th>
+                                    <th>Position</th>
+                                    <th>Connecté</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="units-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="widget">
+                    <div class="widget-header"><span>CRÉER UNITÉ</span></div>
+                    <div class="widget-content">
+                        <div class="form-group">
+                            <label>ID</label>
+                            <input type="text" id="unit-id" class="form-control" placeholder="VEST-XXX">
+                        </div>
+                        <div class="form-group">
+                            <label>Nom</label>
+                            <input type="text" id="unit-name" class="form-control" placeholder="ALPHA">
+                        </div>
+                        <div class="form-group">
+                            <label>Type</label>
+                            <select id="unit-type" class="form-control">
+                                <option value="combat">COMBAT</option>
+                                <option value="medic">MÉDICAL</option>
+                                <option value="recon">RECONNAISSANCE</option>
+                            </select>
+                        </div>
+                        <button class="cyber-button" id="create-unit-btn">CRÉER</button>
+                    </div>
+                </div>
+                
+                <div class="widget">
+                    <div class="widget-header"><span>DÉPLOIEMENT</span></div>
+                    <div class="widget-content">
+                        <h4>Missions</h4>
+                        <div id="missions-select" style="max-height:100px; overflow-y:auto;"></div>
+                        <button class="cyber-button" id="deploy-btn" style="margin-top:15px;">DÉPLOYER</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ========== ONGLET CARTOGRAPHIE ========== -->
+        <div class="tab-content" id="cartography-tab">
+            <div class="carto-container">
+                <div class="carto-sidebar">
+                    <div class="search-section widget">
+                        <h3>RECHERCHE</h3>
+                        <div class="form-group">
+                            <label>Lieu</label>
+                            <div style="display:flex;">
+                                <input type="text" id="place-search" class="form-control" placeholder="Kinshasa...">
+                                <button class="cyber-button" id="search-btn" style="width:auto; padding:10px;">🔍</button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Coordonnées</label>
+                            <div class="coord-inputs" style="display:flex; gap:5px;">
+                                <input type="text" id="search-lat" class="form-control" placeholder="Lat">
+                                <input type="text" id="search-lng" class="form-control" placeholder="Lng">
+                            </div>
+                        </div>
+                        <button class="cyber-button" id="go-to-coords">ALLER</button>
+                    </div>
+                    
+                    <div class="layers-section widget">
+                        <h3>COUCHES</h3>
+                        <div class="layer-item"><input type="checkbox" id="layer-units" checked> <label>Unités</label></div>
+                        <div class="layer-item"><input type="checkbox" id="layer-missions" checked> <label>Missions</label></div>
+                        <div class="layer-item"><input type="checkbox" id="layer-danger"> <label>Zones danger</label></div>
+                    </div>
+                </div>
+                
+                <div id="world-map"></div>
+            </div>
+        </div>
+        
+        <!-- ========== ONGLET CAPTEURS ========== -->
+        <div class="tab-content" id="sensors-tab">
+            <div class="sensors-grid">
+                <div class="widget">
+                    <div class="widget-header">
+                        <span>LISTE CAPTEURS</span>
+                        <input type="text" id="sensors-filter" class="form-control" style="width:150px;" placeholder="Filtrer">
+                    </div>
+                    <div class="widget-content">
+                        <table class="sensors-table">
+                            <thead>
+                                <tr><th>ID</th><th>Type</th><th>Valeur</th><th>Santé</th></tr>
+                            </thead>
+                            <tbody id="sensors-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="widget">
+                    <div class="widget-header"><span>ANALYSE PRÉDICTIVE</span></div>
+                    <div class="widget-content">
+                        <div class="predictive-cards" id="predictive-cards"></div>
+                        <canvas id="wear-chart" style="height:200px;"></canvas>
+                    </div>
+                </div>
+                
+                <div class="widget">
+                    <div class="widget-header"><span>MAINTENANCE</span></div>
+                    <div class="widget-content" id="maintenance-list"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ========== ONGLET RADAR ========== -->
+        <div class="tab-content" id="radar-tab">
+            <div class="radar-grid">
+                <div class="widget" style="height:100%;">
+                    <div class="widget-header">
+                        <span>FUSION RADAR</span>
+                        <div class="radar-controls">
+                            <button class="draw-btn active" data-range="2000">2km</button>
+                            <button class="draw-btn" data-range="5000">5km</button>
+                            <button class="draw-btn" data-range="10000">10km</button>
+                        </div>
+                    </div>
+                    <div class="radar-display" style="height: calc(100% - 50px);">
+                        <canvas id="radar-canvas"></canvas>
+                    </div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; gap:15px;">
+                    <div class="widget" style="height: 300px;">
+                        <div class="widget-header">
+                            <span>CONTACTS</span>
+                            <span class="badge" id="contacts-count">0</span>
+                        </div>
+                        <div class="widget-content" id="contacts-list"></div>
+                    </div>
+                    
+                    <div class="widget" style="height: 200px;">
+                        <div class="widget-header"><span>DÉTAILS</span></div>
+                        <div class="widget-content" id="radar-details">
+                            <div class="text-center">Cliquez sur un contact</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ========== ONGLET ADMIN ========== -->
+        <div class="tab-content" id="admin-tab">
+            <div class="admin-grid">
+                <div class="widget">
+                    <div class="widget-header"><span>SÉCURITÉ</span></div>
+                    <div class="widget-content">
+                        <div class="info-row">Statut 2FA: <span class="info-value" id="admin-tab-2fa-status">Activé</span></div>
+                        <button class="cyber-button" id="admin-change-password">Changer mot de passe</button>
+                        <button class="cyber-button" id="admin-setup-2fa">Configurer 2FA</button>
+                    </div>
+                </div>
+                
+                <div class="widget">
+                    <div class="widget-header">
+                        <span>UTILISATEURS</span>
+                        <span class="badge" id="admin-tab-users-count">0</span>
+                    </div>
+                    <div class="widget-content">
+                        <table class="units-table">
+                            <thead>
+                                <tr><th>Utilisateur</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="admin-users-table-body"></tbody>
+                        </table>
+                        <button class="cyber-button" id="admin-add-user" style="margin-top:15px;">➕ Ajouter</button>
+                    </div>
+                </div>
+                
+                <div class="widget" style="grid-column: span 2;">
+                    <div class="widget-header"><span>LOGS RÉCENTS</span></div>
+                    <div class="widget-content" id="admin-tab-logs-preview"></div>
+                    <button class="cyber-button" id="admin-view-all-logs">Voir tous les logs</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ========== ONGLET ANALYTIQUE ========== -->
+        <div class="tab-content" id="analytics-tab">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Barre d'outils -->
+                <div style="display: flex; gap: 15px; background: rgba(0,20,0,0.7); border: 2px solid var(--neon-green); border-radius: 16px; padding: 15px; flex-wrap: wrap;">
+                    <select id="analytics-unit" class="form-control" style="width: 200px;">
+                        <option value="">Toutes les unités</option>
+                    </select>
+                    
+                    <select id="analytics-sensor" class="form-control" style="width: 200px;">
+                        <option value="temperature">Température</option>
+                        <option value="heart_rate">Rythme cardiaque</option>
+                        <option value="battery">Batterie</option>
+                        <option value="spo2">SpO2</option>
+                    </select>
+                    
+                    <select id="analytics-range" class="form-control" style="width: 200px;">
+                        <option value="1 day">24 heures</option>
+                        <option value="1 week">1 semaine</option>
+                        <option value="1 month">1 mois</option>
+                    </select>
+                    
+                    <button class="cyber-button" id="analytics-refresh" style="width: auto;">ACTUALISER</button>
+                </div>
+                
+                <!-- Graphiques -->
+                <div class="analytics-grid">
+                    <div class="widget" style="height: 400px;">
+                        <div class="widget-header">
+                            <span>TENDANCES</span>
+                            <span class="badge" id="analytics-points-count">0 points</span>
+                        </div>
+                        <canvas id="trends-chart"></canvas>
+                    </div>
+                    
+                    <div class="widget" style="height: 400px;">
+                        <div class="widget-header"><span>STATISTIQUES</span></div>
+                        <div class="widget-content" id="analytics-stats"></div>
+                    </div>
+                </div>
+                
+                <!-- Anomalies -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="widget" style="height: 300px;">
+                        <div class="widget-header">
+                            <span style="color:#ff4444;">ANOMALIES</span>
+                            <span class="badge" id="anomalies-count">0</span>
+                        </div>
+                        <div class="widget-content" id="anomalies-list"></div>
+                    </div>
+                    
+                    <div class="widget" style="height: 300px;">
+                        <div class="widget-header"><span>RÉSUMÉ UNITÉS</span></div>
+                        <div class="widget-content" id="summary-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ========== ÉCRAN DE CONNEXION MILITAIRE ========== -->
+    <div id="login-screen">
+        <div class="login-box">
+            <!-- Avatar avec scan animé -->
+            <div class="login-avatar">
+                <img src="assets/avatars/commandant.png" alt="Avatar" 
+                     onerror="this.style.display='none'; this.parentElement.innerHTML='<i class=\'fas fa-user-shield\'></i>';">
+            </div>
+            
+            <div class="login-title">
+                <div class="main"><i class="fas fa-shield-alt"></i> FAT-C4ISR</div>
+                <div class="sub">UNITÉ DE COMMANDEMENT · NIVEAU 3</div>
+            </div>
+            
+            <!-- Formulaire de connexion -->
+            <div class="form-group">
+                <label for="login-username"><i class="fas fa-user"></i> IDENTIFIANT</label>
+                <input type="text" id="login-username" value="GeorgesD" placeholder="MATRICULE">
+            </div>
+            
+            <div class="form-group">
+                <label for="login-password"><i class="fas fa-lock"></i> MOT DE PASSE</label>
+                <input type="password" id="login-password" value="admin12345" placeholder="••••••••">
+            </div>
+            
+            <div class="form-group">
+                <label for="login-2fa"><i class="fas fa-qrcode"></i> CODE 2FA</label>
+                <input type="text" id="login-2fa" placeholder="CODE À 6 CHIFFRES">
+                <small style="color:#00aa00; display:block; margin-top:5px;">Disponible dans l'application d'authentification</small>
+            </div>
+            
+            <!-- Options de connexion -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0;">
+                <label style="display: flex; align-items: center; gap: 5px; color: var(--cyber-blue);">
+                    <input type="checkbox" id="remember-me"> <span>Mémoriser ce poste</span>
+                </label>
+                <a href="#" style="color: #00aa00; text-decoration: none; font-size: 12px;" id="recovery-link">Code perdu ?</a>
+            </div>
+            
+            <button class="cyber-button" id="login-btn">
+                <i class="fas fa-sign-in-alt"></i> INITIALISER LA CONNEXION
+            </button>
+            
+            <button class="cyber-button" id="show-register-btn">
+                <i class="fas fa-user-plus"></i> CRÉER UN COMPTE · ENRÔLEMENT
+            </button>
+            
+            <div id="login-error"></div>
+            
+            <!-- Badge de sécurité -->
+            <div style="margin-top: 25px; text-align: center; font-size: 10px; color: #006600; border-top: 1px solid #006600; padding-top: 15px;">
+                <i class="fas fa-shield-alt"></i> SYSTÈME CLASSIFIÉ · ACCÈS RÉSERVÉ AU PERSONNEL AUTORISÉ
+                <br>TOUTE TENTATIVE D'ACCÈS NON AUTORISÉ SERA TRACÉE
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL PASSWORD -->
+    <div class="modal" id="password-modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-lock"></i> CHANGER MOT DE PASSE</h3>
+            <div class="form-group">
+                <label>Mot de passe actuel</label>
+                <input type="password" id="current-password" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Nouveau mot de passe</label>
+                <input type="password" id="new-password" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Confirmation</label>
+                <input type="password" id="confirm-password" class="form-control">
+            </div>
+            <div id="password-message"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('password-modal')">ANNULER</button>
+                <button class="btn-primary" onclick="changePassword()">CHANGER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2FA -->
+    <div class="modal" id="2fa-modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-qrcode"></i> CONFIGURER 2FA</h3>
+            <p>Scannez ce code avec Google Authenticator</p>
+            <div style="text-align:center; margin:20px; background:#000; padding:20px; border-radius:8px;">
+                <i class="fas fa-qrcode" style="font-size:100px; color:#00ff00;"></i>
+            </div>
+            <div class="form-group">
+                <label>Code de vérification</label>
+                <input type="text" id="2fa-code" class="form-control" placeholder="123456" maxlength="6">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('2fa-modal')">ANNULER</button>
+                <button class="btn-primary" onclick="enable2FA()">ACTIVER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LOGS -->
+    <div class="modal" id="logs-modal">
+        <div class="modal-content wide">
+            <h3><i class="fas fa-file-alt"></i> LOGS D'AUDIT</h3>
+            <table class="units-table">
+                <thead>
+                    <tr><th>Date</th><th>Action</th><th>Utilisateur</th><th>IP</th></tr>
+                </thead>
+                <tbody id="logs-table-body"></tbody>
+            </table>
+            <div class="modal-actions">
+                <button class="btn-primary" onclick="closeModal('logs-modal')">FERMER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL UTILISATEURS -->
+    <div class="modal" id="users-modal">
+        <div class="modal-content medium">
+            <h3><i class="fas fa-users"></i> GESTION UTILISATEURS</h3>
+            <table class="units-table">
+                <thead>
+                    <tr><th>Nom</th><th>Rôle</th><th>Statut</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="users-table-body"></tbody>
+            </table>
+            <div class="modal-actions">
+                <button class="btn-primary" onclick="closeModal('users-modal')">FERMER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ASSIGNATION UNITÉS -->
+    <div class="modal" id="assign-units-modal">
+        <div class="modal-content medium">
+            <h3><i class="fas fa-users"></i> AFFECTER DES UNITÉS</h3>
+            <div style="max-height: 400px; overflow-y: auto; margin: 20px 0; border: 1px solid var(--neon-green); padding: 15px; border-radius: 8px;" id="available-units-list">
+                <!-- Rempli dynamiquement -->
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal('assign-units-modal')">ANNULER</button>
+                <button class="btn-primary" onclick="assignSelectedUnits()">AFFECTER</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RÉCUPÉRATION 2FA -->
+    <div class="modal" id="recovery-modal">
+        <div class="modal-content" style="max-width:400px;">
+            <h3><i class="fas fa-key"></i> RÉCUPÉRATION 2FA</h3>
+            <p style="color:#0f0; margin:20px 0;">Contactez votre administrateur système pour obtenir un code de secours.</p>
+            <div style="background:#001100; padding:15px; border:1px solid #0f0; margin:20px 0; text-align:center; border-radius:8px;">
+                <i class="fas fa-phone-alt" style="font-size:30px; color:#0f0;"></i>
+                <div style="margin-top:10px; color:#0f0;">POSTE DE COMMANDEMENT: #4421</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-primary" onclick="closeModal('recovery-modal')">FERMER</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SCRIPTS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <script>
+        // =====================================================
+        // FRONTEND FAT-C4ISR - 100% POSTGRESQL
+        // =====================================================
+
+        console.log('✅ FAT-C4ISR Frontend chargé');
+
+        // Configuration API
+        const API_BASE = window.location.protocol === 'file:' ? 'http://localhost:5001/api' : '/api';
+        let token = null;
+        let wsConnection = null;
+        let env = 'production';
+
+        // =====================================================
+        // VARIABLES GLOBALES
+        // =====================================================
+        let currentEnv = 'dev';
+        let globalAlerts = [];
+        let simulationActive = false;
+        let missionMap, worldMap;
+        let audioEnabled = false;
+        let audioCtx = null;
+        let drawnItems = null;
+        let currentDrawTool = null;
+        let radarAnimation = null;
+        let radarAngle = 0;
+        let targets = [];
+        let deployedUnits = [];
+        let eventsData = [
+            { time: '14:32:45', type: 'SYSTÈME', message: 'Connexion établie', icon: 'fa-server', color: '#0ff' }
+        ];
+// =====================================================
+// AUDIO INITIALIZATION FIX
+// =====================================================
+function initAudio() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioCtx = new AudioContext();
+            console.log('✅ Audio initialisé');
+        }
+    } catch (e) {
+        console.log('⚠️ AudioContext non disponible:', e.message);
+        audioCtx = null;
+    }
+}
+
+// Activer l'audio après interaction utilisateur
+document.addEventListener('click', function enableAudioOnClick() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(() => {
+            console.log('✅ Audio activé après interaction');
+        });
+    }
+    document.removeEventListener('click', enableAudioOnClick);
+}, { once: true });
+
+           // =====================================================
+        // API CLIENT
+        // =====================================================
+        const api = {
+            setToken(t) { 
+                token = t; 
+            },
+            
+            async request(endpoint, options = {}) {
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                    console.log(`📤 Requête vers ${endpoint} avec token:`, token.substring(0, 20) + '...');
+                } else {
+                    console.log(`⚠️ Pas de token pour ${endpoint}`);
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+                    if (!response.ok) {
+                        const error = await response.text();
+                        throw new Error(error);
+                    }
+                    return response.json();
+                } catch (error) {
+                    console.error(`❌ Erreur API ${endpoint}:`, error);
+                    throw error;
+                }
+            },
+            // Unités
+            getVests: () => api.request('/vests'),
+            getVest: (id) => api.request(`/vests/${id}`),
+            getActiveVests: () => api.request('/vests/active'),
+            
+            // Positions
+            getLatestPositions: () => api.request('/positions/latest'),
+            getPositionHistory: (vestId, limit = 100) => 
+                api.request(`/positions/history/${vestId}?limit=${limit}`),
+            getNearbyUnits: (lat, lng, radius = 1000) => 
+                api.request(`/positions/nearby?lat=${lat}&lng=${lng}&radius=${radius}`),
+            
+            // Capteurs
+            getSensorReadings: (vestId, limit = 100) => 
+                api.request(`/sensor/readings/${vestId}?limit=${limit}`),
+            
+            // Alertes
+            getPendingAlerts: () => api.request('/alerts/pending'),
+            acknowledgeAlert: (alertId) => 
+                api.request(`/alerts/${alertId}/acknowledge`, { method: 'POST' }),
+            
+            // Dashboard
+            getDashboardData: () => api.request('/dashboard/data'),
+            
+            // Simulation (DEV uniquement)
+            startSimulation: (config = {}) => 
+                api.request('/sim/dev/start', { method: 'POST', body: JSON.stringify(config) }),
+            stopSimulation: () => api.request('/sim/dev/stop', { method: 'POST' }),
+            generateData: () => api.request('/sim/dev/generate', { method: 'POST' }),
+            getSimStatus: () => api.request('/sim/dev/status'),
+            
+            // Analytics TimescaleDB
+            getTrends: (vestId, params) => {
+                const qs = new URLSearchParams(params).toString();
+                return api.request(`/analytics/trends/${vestId}?${qs}`);
+            },
+            getAnomalies: (vestId, params) => {
+                const qs = new URLSearchParams(params).toString();
+                return api.request(`/analytics/anomalies/${vestId}?${qs}`);
+            },
+            getSummary: () => api.request('/analytics/summary')
+        };
+
+        // =====================================================
+        // FONCTIONS AUDIO
+        // =====================================================
+        function playMilitaryBeep(freq, duration) {
+            if (!audioEnabled || !audioCtx || audioCtx.state === 'closed') return;
+            if (audioCtx.state === 'suspended') { audioCtx.resume(); return; }
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.connect(gain).connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        document.addEventListener('click', function enableAudio() {
+            audioEnabled = true;
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            document.removeEventListener('click', enableAudio);
+        }, { once: true });
+
+        // =====================================================
+        // AUTHENTIFICATION
+        // =====================================================
+        async function login() {
+            // Éviter les appels multiples
+            if (token) {
+                console.log('✅ Déjà connecté');
+                return;
+            }
+            try {
+                console.log('🔄 Tentative de connexion...');
+                
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'GeorgesD',
+                        password: 'admin12345'
+                    })
+                });
+                
+                console.log('📦 Statut réponse:', response.status);
+                
+                // Vérifier si la réponse est OK
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Erreur HTTP:', response.status, errorText);
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                
+                // Lire la réponse UNE SEULE FOIS
+                const data = await response.json();
+                console.log('📦 Données reçues:', data);
+                
+                if (data.success) {
+                    // Stocker le token
+                    token = data.token;
+                    window.token = token; // Pour debug
+                    api.setToken(token);
+                    
+                    console.log('✅ Connecté à PostgreSQL');
+                    console.log('🔑 Token reçu:', token ? token.substring(0, 20) + '...' : 'null');
+                    
+                    // Afficher le badge d'alertes APRÈS connexion
+                    const alertsBadge = document.getElementById('global-alerts-badge');
+                    if (alertsBadge) alertsBadge.style.display = 'block';
+                    
+                    console.log('✅ Connecté à PostgreSQL');
+                    // Connecter WebSocket
+                    connectWebSocket();
+                    
+                    // Charger les données
+                    await loadAllData();
+                    
+                    // Mise à jour périodique
+                    setInterval(() => {
+                        if (token) loadAllData();
+                    }, 30000);
+                    
+                } else {
+                    console.error('❌ Échec login:', data);
+                    alert('Échec de la connexion: ' + (data.message || 'Identifiants invalides'));
+                }
+            } catch (error) {
+                console.error('❌ Erreur login:', error);
+                alert('Impossible de se connecter au serveur. Vérifiez que le backend est démarré sur http://localhost:5001');
+            }
+        }
+
+        // =====================================================
+        // WEBSOCKET
+        // =====================================================
+        function connectWebSocket() {
+            try {
+                wsConnection = new WebSocket('ws://localhost:5001');
+                
+                wsConnection.onopen = () => {
+                    console.log('✅ WebSocket connecté');
+                };
+                
+                wsConnection.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('📦 WebSocket message:', data.type);
+                        
+                        if (data.type === 'new_alert') {
+                            showNotification(`Nouvelle alerte: ${data.data.message}`, 'warning');
+                            loadAllData();
+                        }
+                    } catch (e) {
+                        console.error('❌ Erreur parsing WebSocket:', e);
+                    }
+                };
+                
+                wsConnection.onclose = () => {
+                    console.log('🔌 WebSocket déconnecté, reconnexion dans 5s...');
+                    setTimeout(connectWebSocket, 5000);
+                };
+                
+                wsConnection.onerror = (error) => {
+                    console.log('⚠️ Erreur WebSocket (normal si serveur sans WebSocket)');
+                };
+                
+            } catch (error) {
+                console.error('❌ Impossible de créer WebSocket:', error);
+            }
+        }
+
+        function updateSinglePosition(data) {
+            if (!missionMap || !data) return;
+            // À implémenter si nécessaire
+        }
+
+        // =====================================================
+        // CHARGEMENT COMPLET DES DONNÉES
+        // =====================================================
+        async function loadAllData() {
+            if (!token) {
+                console.log('⏳ Pas de token - impossible de charger les données');
+                return;
+            }
+            
+            try {
+                const [vests, positions, alerts, dashboard, summary] = await Promise.all([
+                    api.getVests().catch(err => {
+                        console.error('❌ Erreur vests:', err);
+                        return [];
+                    }),
+                    api.getLatestPositions().catch(err => {
+                        console.error('❌ Erreur positions:', err);
+                        return [];
+                    }),
+                    api.getPendingAlerts().catch(err => {
+                        console.error('❌ Erreur alerts:', err);
+                        return [];
+                    }),
+                    api.getDashboardData().catch(err => {
+                        console.error('❌ Erreur dashboard:', err);
+                        return { stats: [] };
+                    }),
+                    api.getSummary().catch(err => {
+                        console.error('❌ Erreur summary:', err);
+                        return [];
+                    })
+                ]);
+                
+                console.log('📦 Unités reçues:', vests);
+                console.log('📦 Alertes reçues:', alerts);
+                
+                updateUnitsDisplay(vests);
+                updatePositionsOnMap(positions);
+                updateAlertsDisplay(alerts);
+                updateDashboardWithData(dashboard);
+                updateSummary(summary);
+                updateEventsList();
+                
+            } catch (error) {
+                console.error('❌ Erreur chargement:', error);
+            }
+        }
+
+        // =====================================================
+        // AFFICHAGE DES UNITÉS
+        // =====================================================
+        function updateUnitsDisplay(units) {
+            const unitsList = document.getElementById('units-list');
+            const unitsCount = document.getElementById('units-count');
+            
+            if (!unitsList) return;
+            
+            if (!units || units.length === 0) {
+                unitsList.innerHTML = '<div class="text-center">Aucune unité active</div>';
+                if (unitsCount) unitsCount.textContent = '0';
+                return;
+            }
+            
+            unitsList.innerHTML = units.map(u => `
+                <div class="unit-item" onclick="showBiometric('${u.id}')">
+                    <div class="unit-status ${u.status || 'online'}"></div>
+                    <div>
+                        <div class="unit-name"><i class="fas fa-id-card"></i> ${u.id} · ${u.soldier_name || 'Inconnu'}</div>
+                        <div class="unit-stats">
+                            <span><i class="fas fa-thermometer-half"></i> ${u.last_temp?.toFixed(1) || '--'}°C</span>
+                            <span><i class="fas fa-heartbeat"></i> ${u.last_heart_rate?.toFixed(0) || '--'} BPM</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div><i class="fas fa-battery-three-quarters"></i> ${u.battery_level || u.last_battery || '--'}%</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            if (unitsCount) unitsCount.textContent = units.length;
+        }
+// =====================================================
+// FILTRAGE DES UNITÉS - À METTRE ICI
+// =====================================================
+async function filterUnits(searchTerm) {
+    if (!token) {
+        console.log('⏳ Pas de token - impossible de filtrer');
+        return;
+    }
+    
+    try {
+        const allUnits = await api.getVests().catch(() => []);
+        
+        let filtered = allUnits;
+        if (searchTerm && searchTerm.length > 0) {
+            filtered = allUnits.filter(u => 
+                (u.id && u.id.toLowerCase().includes(searchTerm)) || 
+                (u.soldier_name && u.soldier_name.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        console.log(`🔍 ${filtered.length}/${allUnits.length} unités trouvées`);
+        updateUnitsDisplay(filtered);
+    } catch (error) {
+        console.error('❌ Erreur filtrage:', error);
+    }
+}
+        // =====================================================
+        // AFFICHAGE DES POSITIONS SUR LA CARTE
+        // =====================================================
+        function updatePositionsOnMap(positions) {
+            if (!missionMap) return;
+            
+            missionMap.eachLayer((layer) => {
+                if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+                    if (!layer.options?.isDrawing) {
+                        missionMap.removeLayer(layer);
+                    }
+                }
+            });
+            
+            positions.forEach(pos => {
+                if (pos.latitude && pos.longitude) {
+                    const color = pos.status === 'warning' ? '#ff8800' : 
+                                 pos.status === 'critical' ? '#ff4444' : '#00ff00';
+                    
+                    const marker = L.circleMarker([pos.latitude, pos.longitude], {
+                        radius: 8,
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.8,
+                        weight: 2
+                    }).addTo(missionMap);
+                    
+                    marker.bindPopup(`
+                        <b>${pos.id}</b><br>
+                        ${pos.soldier_name || ''}<br>
+                        📍 ${pos.latitude.toFixed(4)}, ${pos.longitude.toFixed(4)}<br>
+                        🕐 ${pos.timestamp ? new Date(pos.timestamp).toLocaleTimeString() : ''}
+                    `);
+                    
+                    marker.on('click', () => showBiometric(pos.id));
+                }
+            });
+        }
+
+        // =====================================================
+        // AFFICHAGE DES ALERTES
+        // =====================================================
+        function updateAlertsDisplay(alerts) {
+            const alertsList = document.getElementById('alerts-list');
+            const alertsCount = document.getElementById('alerts-count');
+            
+            if (!alertsList) return;
+            
+            if (!alerts || alerts.length === 0) {
+                alertsList.innerHTML = '<div class="text-center">✅ Aucune alerte active</div>';
+                if (alertsCount) alertsCount.textContent = '0';
+                return;
+            }
+            
+            alertsList.innerHTML = alerts.map(a => `
+                <div class="alert-item ${a.severity || 'warning'}" 
+                     onclick="showAlertDetails('${a.id || a.alert_id || 'alerte'}')"
+                     style="animation: slideIn 0.3s ease;">
+                    <b><i class="fas fa-exclamation-triangle"></i> ${a.type || 'ALERTE'}</b><br>
+                    ${a.message}<br>
+                    <small>${new Date(a.timestamp).toLocaleString()}</small>
+                </div>
+            `).join('');
+            
+            if (alertsCount) alertsCount.textContent = alerts.length;
+            
+            const criticalAlerts = alerts.filter(a => a.severity === 'critical');
+            if (criticalAlerts.length > 0) {
+                playMilitaryBeep(880, 0.3);
+                setTimeout(() => playMilitaryBeep(440, 0.3), 300);
+            }
+        }
+
+        // =====================================================
+        // TABLEAU DE BORD
+        // =====================================================
+
+        function updateMonitoringDisplay(dashboard) {
+            const monitoringContent = document.getElementById('monitoring-content');
+            if (!monitoringContent) return;
+            
+            if (!dashboard || !dashboard.stats || dashboard.stats.length === 0) {
+                monitoringContent.innerHTML = '<div class="text-center">En attente de données...</div>';
+                return;
+            }
+            
+            monitoringContent.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    ${dashboard.stats.slice(0, 6).map(s => `
+                        <div class="info-row">
+                            ${s.sensor_type || 'Capteur'}: 
+                            <span class="info-value">${s.avg_value?.toFixed(1) || '--'}${s.unit || ''}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="db-status" style="margin-top:10px;">
+                    <span style="color:#0f0;">●</span>
+                    <span>Données temps réel</span>
+                </div>
+            `;
+        }
+
+        // =====================================================
+        // MONITORING AMÉLIORÉ - UTILISE LES DONNÉES DES CAPTEURS
+        // =====================================================
+        function updateDashboardWithData(data) {
+            const monitoringContent = document.getElementById('monitoring-content');
+            if (!monitoringContent) return;
+            
+            if (data && data.stats && data.stats.length > 0) {
+                displayMonitoringStats(data.stats);
+            } else {
+                loadLatestSensorData();
+            }
+        }
+
+        async function loadLatestSensorData() {
+            try {
+                const vests = await api.getVests();
+                const monitoringContent = document.getElementById('monitoring-content');
+                
+                const latestReadings = [];
+                
+                for (const vest of vests.slice(0, 5)) {
+                    const readings = await api.getSensorReadings(vest.id, 1);
+                    if (readings && readings.length > 0) {
+                        const reading = readings[0];
+                        if (reading.data) {
+                            latestReadings.push({
+                                sensor_type: `VEST ${vest.id}`,
+                                avg_value: reading.data.temperature || reading.data.heart_rate || reading.data.battery || '--',
+                                unit: reading.data.temperature ? '°C' : 
+                                      reading.data.heart_rate ? 'BPM' : 
+                                      reading.data.battery ? '%' : ''
+                            });
+                        }
+                    }
+                }
+                
+                if (latestReadings.length > 0) {
+                    displayMonitoringStats(latestReadings);
+                } else {
+                    displayMonitoringStats(getSimulatedStats());
+                }
+            } catch (error) {
+                console.error('Erreur chargement capteurs:', error);
+                displayMonitoringStats(getSimulatedStats());
+            }
+        }
+
+        function displayMonitoringStats(stats) {
+            const monitoringContent = document.getElementById('monitoring-content');
+            if (!monitoringContent) return;
+            
+            monitoringContent.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    ${stats.slice(0, 6).map(s => `
+                        <div class="info-row" style="border-bottom: 1px solid #0f0; padding: 5px;">
+                            ${s.sensor_type || 'Capteur'}: 
+                            <span class="info-value" style="color: #0f0; font-weight: bold;">
+                                ${typeof s.avg_value === 'number' ? s.avg_value.toFixed(1) : s.avg_value || '--'} ${s.unit || ''}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="db-status" style="margin-top:15px; padding:10px; background:rgba(0,255,0,0.1); border-radius:5px;">
+                    <span style="color:#0f0;">●</span>
+                    <span style="color:#0f0;"> Monitoring temps réel (${stats.length} capteurs)</span>
+                </div>
+            `;
+        }
+
+        function getSimulatedStats() {
+            return [
+                { sensor_type: 'Température', avg_value: 37.2, unit: '°C' },
+                { sensor_type: 'Rythme cardiaque', avg_value: 72, unit: 'BPM' },
+                { sensor_type: 'SpO2', avg_value: 98, unit: '%' },
+                { sensor_type: 'Batterie', avg_value: 85, unit: '%' },
+                { sensor_type: 'Signal', avg_value: 92, unit: '%' },
+                { sensor_type: 'Accéléromètre', avg_value: 1.02, unit: 'g' }
+            ];
+        }
+
+        // =====================================================
+        // AFFICHAGE DU RÉSUMÉ
+        // =====================================================
+        function updateSummary(summary) {
+            const summaryList = document.getElementById('summary-list');
+            if (!summaryList) return;
+            
+            summaryList.innerHTML = summary.map(s => `
+                <div class="event-item" style="border-left:3px solid ${s.status === 'warning' ? '#ff8800' : '#0f0'}">
+                    <span><b>${s.id}</b> - ${s.soldier_name}</span>
+                    <span>${s.status}</span>
+                    <div style="font-size: 10px;">
+                        🌡️ ${s.last_temp?.toFixed(1) || '--'}°C | 
+                        ❤️ ${s.last_heart_rate?.toFixed(0) || '--'} | 
+                        🔋 ${s.last_battery?.toFixed(0) || '--'}%
+                    </div>
+                    <small>Dernière: ${s.last_reading ? new Date(s.last_reading).toLocaleTimeString() : 'jamais'}</small>
+                </div>
+            `).join('');
+        }
+
+        // =====================================================
+        // FONCTIONS UI
+        // =====================================================
+        window.showAlertsPanel = function() {
+            const panel = document.getElementById('alerts-panel');
+            if (panel) panel.style.display = 'block';
+        };
+
+        window.closeAlertsPanel = function() {
+            const panel = document.getElementById('alerts-panel');
+            if (panel) panel.style.display = 'none';
+        };
+
+        window.openModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'flex';
+        };
+
+        window.closeModal = function(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.showAlertPopup = function(title, message, severity) {
+            const loginScreen = document.getElementById('login-screen');
+            if (loginScreen && loginScreen.style.display !== 'none') {
+                console.log('🔇 Alerte masquée (écran de connexion)');
+                return;
+            }
+            
+            if (!token) {
+                console.log('🔇 Alerte masquée (non connecté)');
+                return;
+            }
+            
+            let popup = document.getElementById('alert-popup');
+            if (!popup) {
+                popup = document.createElement('div');
+                popup.id = 'alert-popup';
+                popup.className = 'alert-popup';
+                popup.innerHTML = `
+                    <h3 style="color:#ff4444;"><i class="fas fa-exclamation-triangle"></i> ALERTE</h3>
+                    <p id="alert-message"></p>
+                    <button class="cyber-button" onclick="this.parentElement.style.display='none'">OK</button>
+                `;
+                document.body.appendChild(popup);
+            }
+            
+            const messageEl = document.getElementById('alert-message');
+            if (messageEl) messageEl.innerHTML = `<b>${title}</b><br>${message}`;
+            
+            popup.style.display = 'block';
+            
+            if (severity === 'critical' && window.playMilitaryBeep) {
+                playMilitaryBeep(880, 0.3);
+                setTimeout(() => playMilitaryBeep(440, 0.3), 300);
+            }
+            
+            setTimeout(() => {
+                if (popup) popup.style.display = 'none';
+            }, 5000);
+        };
+
+        async function showBiometric(unitId) {
+            try {
+                const [unit, readings] = await Promise.all([
+                    api.getVest(unitId),
+                    api.getSensorReadings(unitId, 10)
+                ]);
+                
+                const panel = document.getElementById('biometric-panel');
+                const content = document.getElementById('biometric-content');
+                
+                if (panel) panel.style.display = 'block';
+                if (content && unit) {
+                    const lastReading = readings[0] || {};
+                    content.innerHTML = `
+                        <div><b>${unit.id} - ${unit.soldier_name}</b></div>
+                        <div><i class="fas fa-thermometer-half"></i> Température: ${lastReading.data?.temperature || '--'}°C</div>
+                        <div><i class="fas fa-heartbeat"></i> Cardiaque: ${lastReading.data?.heart_rate || '--'} BPM</div>
+                        <div><i class="fas fa-battery-three-quarters"></i> Batterie: ${unit.battery_level || '--'}%</div>
+                        <div style="margin-top:10px;">
+                            <small>Dernière lecture: ${lastReading.timestamp ? new Date(lastReading.timestamp).toLocaleString() : 'N/A'}</small>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erreur chargement biométrie:', error);
+            }
+        }
+
+        function showRadarDetails(id) {
+            showNotification(`Détails radar pour ${id}`, 'info');
+        }
+
+        function addEvent(type, message, icon, color) {
+            eventsData.unshift({
+                time: new Date().toLocaleTimeString(),
+                type, message, icon, color
+            });
+            if (eventsData.length > 15) eventsData.pop();
+            updateEventsList();
+        }
+
+        function updateEventsList() {
+            const eventsList = document.getElementById('events-list');
+            if (!eventsList) return;
+            
+            eventsList.innerHTML = eventsData.map(e => `
+                <div class="event-item" style="border-left:3px solid ${e.color}">
+                    <span class="event-time">${e.time}</span>
+                    <span class="event-type"><i class="fas ${e.icon}"></i> ${e.type}</span>
+                    <span>${e.message}</span>
+                </div>
+            `).join('');
+            
+            const countEl = document.getElementById('events-count');
+            if (countEl) countEl.textContent = eventsData.length;
+        }
+
+        function selectNetwork(network) {
+            document.querySelectorAll('.network-item').forEach(i => i.classList.remove('selected'));
+            const selected = document.querySelector(`[data-network="${network}"]`);
+            if (selected) selected.classList.add('selected');
+            
+            const data = {
+                '5G': { signal: 94, latency: 46, name: '5G PRIMAIRE' },
+                '4G': { signal: 77, latency: 62, name: '4G SECONDAIRE' },
+                'LoRa': { signal: 95, latency: 165, name: 'LORA' },
+                'SAT': { signal: 68, latency: 312, name: 'SATELLITE' }
+            }[network] || { signal: 94, latency: 46, name: '5G PRIMAIRE' };
+            
+            const nameEl = document.getElementById('selected-network-name');
+            const latencyEl = document.getElementById('selected-latency');
+            const signalEl = document.getElementById('selected-signal');
+            const activeNetworkEl = document.getElementById('active-network');
+            
+            if (nameEl) nameEl.textContent = data.name;
+            if (latencyEl) latencyEl.textContent = data.latency + ' ms';
+            if (signalEl) signalEl.textContent = data.signal + '%';
+            if (activeNetworkEl) activeNetworkEl.textContent = network;
+            
+            playMilitaryBeep(600, 0.05);
+            addEvent('COMMUNICATION', `Réseau ${network}`, 'fa-wifi', '#0ff');
+        }
+
+        // =====================================================
+        // SYSTÈME D'ALERTES
+        // =====================================================
+        function updateAlertsCounter() {}
+
+        function createAlertsPanel() {
+            if (document.getElementById('alerts-panel')) return;
+            
+            const panel = document.createElement('div');
+            panel.id = 'alerts-panel';
+            panel.className = 'alerts-global-panel';
+            panel.innerHTML = `
+                <div style="padding:15px; border-bottom:2px solid #ff4444;">
+                    <span style="color:#ff4444;">ALERTES</span>
+                    <button onclick="closeAlertsPanel()" style="float:right;">✕</button>
+                </div>
+                <div id="alerts-panel-content" style="max-height:400px; padding:10px;"></div>
+            `;
+            document.body.appendChild(panel);
+        }
+
+        function showNotification(message, type = 'info') {
+            console.log(`[${type}] ${message}`);
+        }
+
+        function showAlertDetails(alertId) {
+            console.log('🔔 Détails alerte:', alertId);
+            showAlertPopup(
+                'Détails de l\'alerte',
+                `ID: ${alertId}\nConsultez les logs pour plus d'informations`,
+                'info'
+            );
+        }
+
+        // =====================================================
+        // CONTRÔLES DE SIMULATION
+        // =====================================================
+        function updateSimulationUI(status) {
+            const simStatus = document.getElementById('sim-status');
+            if (!simStatus) return;
+            
+            if (status.active) {
+                simStatus.innerHTML = '✅ Simulation active (DEV)';
+                simStatus.style.color = '#0f0';
+            } else {
+                simStatus.innerHTML = '⏸️ Simulation arrêtée';
+                simStatus.style.color = '#888';
+            }
+        }
+
+        function initSimulationControls() {
+            const simStart = document.getElementById('sim-start-btn');
+            const simStop = document.getElementById('sim-stop-btn');
+            const simOnce = document.getElementById('sim-once-btn');
+            const simStatus = document.getElementById('sim-status');
+            
+            if (!simStart || !simStop || !simOnce) return;
+            
+            api.getSimStatus().then(status => updateSimulationUI(status));
+            
+            simStart.addEventListener('click', async () => {
+                try {
+                    const result = await api.startSimulation({ intensity: 1.0 });
+                    updateSimulationUI({ active: true });
+                    showNotification('Simulation démarrée', 'success');
+                    await loadAllData();
+                } catch (error) {
+                    showNotification('Erreur démarrage simulation', 'error');
+                }
+            });
+            
+            simStop.addEventListener('click', async () => {
+                try {
+                    await api.stopSimulation();
+                    updateSimulationUI({ active: false });
+                    showNotification('Simulation arrêtée', 'info');
+                    await loadAllData();
+                } catch (error) {
+                    showNotification('Erreur arrêt simulation', 'error');
+                }
+            });
+            
+            simOnce.addEventListener('click', async () => {
+                try {
+                    await api.generateData();
+                    await loadAllData();
+                    showNotification('Données générées', 'success');
+                } catch (error) {
+                    showNotification('Erreur génération', 'error');
+                }
+            });
+        }
+
+        // =====================================================
+        // ADMIN SETTINGS
+        // =====================================================
+        function updateAdminPanel() {
+            const usersBody = document.getElementById('admin-users-table-body');
+            if (usersBody) {
+                usersBody.innerHTML = `
+                    <tr>
+                        <td>Georges Donnavan</td>
+                        <td><span style="color:gold;">ADMIN</span></td>
+                        <td><span class="unit-status online"></span> En ligne</td>
+                        <td><button class="unit-action-btn">✏️</button></td>
+                    </tr>
+                `;
+                document.getElementById('admin-tab-users-count').textContent = '1';
+            }
+        }
+
+        // =====================================================
+        // BOUTONS ADMIN - FONCTIONNELS
+        // =====================================================
+
+        document.getElementById('change-password-btn')?.addEventListener('click', () => {
+            openModal('password-modal');
+        });
+
+        document.getElementById('setup-2fa-btn')?.addEventListener('click', () => {
+            openModal('2fa-modal');
+        });
+
+        document.getElementById('view-logs-btn')?.addEventListener('click', async () => {
+            try {
+                let logs = [];
+                try {
+                    logs = await api.request('/admin/logs');
+                } catch (e) {
+                    logs = [
+                        { date: new Date().toISOString(), action: 'Connexion', user: 'GeorgesD', ip: '192.168.1.45' },
+                        { date: new Date(Date.now() - 3600000).toISOString(), action: 'Consultation unités', user: 'GeorgesD', ip: '192.168.1.45' },
+                        { date: new Date(Date.now() - 7200000).toISOString(), action: 'Simulation démarrée', user: 'GeorgesD', ip: '192.168.1.45' }
+                    ];
+                }
+                
+                const logsBody = document.getElementById('logs-table-body');
+                if (logsBody) {
+                    logsBody.innerHTML = logs.map(l => `
+                        <tr>
+                            <td>${new Date(l.date || l.timestamp).toLocaleString()}</td>
+                            <td>${l.action}</td>
+                            <td>${l.user}</td>
+                            <td>${l.ip || '127.0.0.1'}</td>
+                        </tr>
+                    `).join('');
+                }
+                openModal('logs-modal');
+            } catch (error) {
+                console.error('❌ Erreur logs:', error);
+                alert('Erreur lors du chargement des logs');
+            }
+        });
+
+        document.getElementById('manage-users-btn')?.addEventListener('click', async () => {
+            try {
+                let users = [];
+                try {
+                    users = await api.request('/users');
+                } catch (e) {
+                    users = [
+                        { name: 'Georges Donnavan', role: 'ADMIN', status: 'En ligne' },
+                        { name: 'Jean-Pierre', role: 'SUPERVISOR', status: 'En ligne' },
+                        { name: 'Marie-Claire', role: 'OPERATOR', status: 'Hors ligne' }
+                    ];
+                }
+                
+                const usersBody = document.getElementById('users-table-body');
+                if (usersBody) {
+                    usersBody.innerHTML = users.map(u => `
+                        <tr>
+                            <td>${u.name || u.full_name}</td>
+                            <td><span style="color:${u.role === 'ADMIN' ? 'gold' : '#0f0'};">${u.role}</span></td>
+                            <td><span class="unit-status ${(u.status === 'En ligne' || u.status === 'online') ? 'online' : 'warning'}"></span> ${u.status}</td>
+                            <td>
+                                <button class="unit-action-btn" onclick="editUser('${u.id}')">✏️</button>
+                                <button class="unit-action-btn disconnect" onclick="deleteUser('${u.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+                openModal('users-modal');
+            } catch (error) {
+                console.error('❌ Erreur utilisateurs:', error);
+                alert('Erreur lors du chargement des utilisateurs');
+            }
+        });
+
+        window.editUser = (userId) => {
+            alert(`Édition de l'utilisateur ${userId} (à implémenter)`);
+        };
+
+        window.deleteUser = (userId) => {
+            if (confirm(`Supprimer l'utilisateur ${userId} ?`)) {
+                alert('Fonctionnalité à implémenter');
+            }
+        };
+
+        // =====================================================
+        // FONCTIONS DES MODALES
+        // =====================================================
+
+        window.changePassword = async function() {
+            const current = document.getElementById('current-password')?.value;
+            const newPass = document.getElementById('new-password')?.value;
+            const confirm = document.getElementById('confirm-password')?.value;
+            const messageEl = document.getElementById('password-message');
+            
+            if (!messageEl) return;
+            
+            if (!current || !newPass || !confirm) {
+                messageEl.innerHTML = '❌ Tous les champs sont requis';
+                messageEl.style.color = '#ff4444';
+                return;
+            }
+            
+            if (newPass !== confirm) {
+                messageEl.innerHTML = '❌ Les mots de passe ne correspondent pas';
+                messageEl.style.color = '#ff4444';
+                return;
+            }
+            
+            try {
+                await api.request('/auth/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ currentPassword: current, newPassword: newPass })
+                });
+                
+                messageEl.innerHTML = '✅ Mot de passe modifié avec succès';
+                messageEl.style.color = '#0f0';
+                
+                setTimeout(() => {
+                    closeModal('password-modal');
+                    document.getElementById('current-password').value = '';
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-password').value = '';
+                    messageEl.innerHTML = '';
+                }, 2000);
+            } catch (error) {
+                messageEl.innerHTML = '❌ Erreur: ' + error.message;
+                messageEl.style.color = '#ff4444';
+            }
+        };
+
+        window.enable2FA = function() {
+            const code = document.getElementById('2fa-code')?.value;
+            
+            if (code === '123456') {
+                alert('✅ 2FA activé avec succès');
+                closeModal('2fa-modal');
+                
+                const admin2fa = document.getElementById('admin-2fa');
+                if (admin2fa) {
+                    admin2fa.innerHTML = 'Activé';
+                    admin2fa.style.color = '#0f0';
+                }
+            } else {
+                alert('❌ Code invalide');
+            }
+        };
+
+        // =====================================================
+        // GESTION DE LA CONNEXION
+        // =====================================================
+        document.getElementById('login-btn').addEventListener('click', login);
+
+        document.getElementById('logout-btn')?.addEventListener('click', () => {
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('app').style.display = 'none';
+            if (wsConnection) wsConnection.close();
+        });
+
+        // =====================================================
+        // GESTION DES ONGLETS
+        // =====================================================
+        document.querySelectorAll('.tab-item').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                const tabId = tab.dataset.tab + '-tab';
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                const targetTab = document.getElementById(tabId);
+                if (targetTab) targetTab.classList.add('active');
+                
+                if (tab.dataset.tab === 'mission' && missionMap) {
+                    setTimeout(() => missionMap.invalidateSize(), 100);
+                }
+                
+                if (tab.dataset.tab === 'analytics' && token) {
+                    setTimeout(loadAnalyticsTab, 100);
+                }
+            });
+        });
+
+        // =====================================================
+        // INITIALISATION DES CARTES
+        // =====================================================
+        function initMaps() {
+            const missionMapEl = document.getElementById('mission-map');
+            if (missionMapEl && !missionMap) {
+                missionMap = L.map('mission-map').setView([-4.3, 15.3], 12);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: 'FAT-C4ISR'
+                }).addTo(missionMap);
+                
+                drawnItems = L.featureGroup().addTo(missionMap);
+            }
+            
+            const worldMapEl = document.getElementById('world-map');
+            if (worldMapEl && !worldMap) {
+                worldMap = L.map('world-map').setView([0, 0], 2);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: 'FAT-C4ISR'
+                }).addTo(worldMap);
+            }
+        }
+
+        function initRadar() {
+            const canvas = document.getElementById('radar-canvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            let angle = 0;
+            
+            function resizeCanvas() {
+                const container = canvas.parentElement;
+                if (container) {
+                    canvas.width = container.clientWidth;
+                    canvas.height = container.clientHeight;
+                }
+            }
+            
+            function draw() {
+                resizeCanvas();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = 'rgba(0,255,0,0.2)';
+                for (let i = 1; i <= 4; i++) {
+                    ctx.beginPath();
+                    ctx.arc(canvas.width/2, canvas.height/2, i * Math.min(canvas.width, canvas.height)/8, 0, 2*Math.PI);
+                    ctx.stroke();
+                }
+                
+                for (let i = 0; i < 8; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width/2, canvas.height/2);
+                    ctx.lineTo(canvas.width/2 + Math.cos(i*Math.PI/4)*canvas.width/2, 
+                               canvas.height/2 + Math.sin(i*Math.PI/4)*canvas.height/2);
+                    ctx.stroke();
+                }
+                
+                ctx.strokeStyle = '#0f0';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(canvas.width/2, canvas.height/2);
+                ctx.lineTo(canvas.width/2 + Math.cos(angle)*canvas.width/2, 
+                           canvas.height/2 + Math.sin(angle)*canvas.height/2);
+                ctx.stroke();
+                
+                angle += 0.02;
+                requestAnimationFrame(draw);
+            }
+            
+            draw();
+        }
+
+        // =====================================================
+        // FONCTIONS MISSION
+        // =====================================================
+        function initMissionMap() {
+            if (missionMap) {
+                console.log('🗺️ Carte déjà initialisée');
+                return;
+            }
+            
+            const mapEl = document.getElementById('mission-map');
+            if (!mapEl) return;
+            
+            try {
+                missionMap = L.map('mission-map', {
+                    center: [-4.3, 15.3],
+                    zoom: 12,
+                    zoomControl: true
+                });
+                
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                    attribution: 'FAT-C4ISR'
+                }).addTo(missionMap);
+                
+                drawnItems = L.featureGroup().addTo(missionMap);
+                console.log('🗺️ Carte initialisée');
+            } catch (error) {
+                console.error('❌ Erreur carte:', error);
+            }
+        }
+
+        function startRadarAnimation() {
+            const sweep = document.getElementById('radar-sweep');
+            const hand = document.getElementById('radar-hand');
+            if (!sweep || !hand) return;
+            
+            sweep.style.display = 'block';
+            
+            function animate() {
+                radarAngle = (radarAngle + 2) % 360;
+                hand.style.transform = `rotate(${radarAngle}deg)`;
+                if (radarAngle % 90 === 0 && Math.random() > 0.7) {
+                    addEvent('RADAR', 'Nouvelle cible détectée', 'fa-radar', '#ff0');
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function setupUnitButtons() {
+            const addBtn = document.getElementById('add-unit-btn');
+            const removeBtn = document.getElementById('remove-unit-btn');
+            
+            if (addBtn) {
+                addBtn.addEventListener('click', () => {
+                    showNotification('Fonctionnalité à implémenter', 'info');
+                });
+            }
+            
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    showNotification('Fonctionnalité à implémenter', 'info');
+                });
+            }
+        }
+
+        function updateDeployedUnitsDisplay() {
+            const container = document.getElementById('deployed-units-list');
+            if (!container) return;
+            container.innerHTML = '<div class="text-center">Aucune unité déployée</div>';
+        }
+
+        function initMissionTab() {
+            initMissionMap();
+            setupUnitButtons();
+            startRadarAnimation();
+            deployedUnits = [];
+            updateDeployedUnitsDisplay();
+        }
+
+        // =====================================================
+        // BARRE DE RECHERCHE
+        // =====================================================
+        function setupDashboardSearch() {
+            const searchInput = document.getElementById('dashboard-search');
+            if (!searchInput) return;
+            
+            searchInput.addEventListener('input', function(e) {
+                const term = e.target.value.toLowerCase().trim();
+                filterUnits(term);
+            });
+        }
+
+        async function filterUnits(searchTerm) {
+            if (!token) return;
+            
+            try {
+                const allUnits = await api.getVests();
+                const filtered = allUnits.filter(u => 
+                    u.id.toLowerCase().includes(searchTerm) || 
+                    (u.soldier_name && u.soldier_name.toLowerCase().includes(searchTerm))
+                );
+                updateUnitsDisplay(filtered);
+            } catch (error) {
+                console.error('Erreur recherche:', error);
+            }
+        }
+
+        // =====================================================
+        // ANALYTIQUE TIMESCALEDB
+        // =====================================================
+        let trendsChart = null;
+
+        async function loadAnalyticsTab() {
+            if (!token) await login();
+            
+            try {
+                const units = await api.getVests();
+                
+                const unitSelect = document.getElementById('analytics-unit');
+                const heatmapUnit = document.getElementById('heatmap-unit');
+                
+                const options = units.map(u => `<option value="${u.id}">${u.id}</option>`).join('');
+                if (unitSelect) unitSelect.innerHTML = '<option value="">Sélectionner</option>' + options;
+                if (heatmapUnit) heatmapUnit.innerHTML = options;
+                
+                await loadTrends();
+                await loadAnomalies();
+                await loadRadarChart();
+                
+                const firstUnit = units[0]?.id;
+                if (firstUnit) {
+                    await loadDistributionChart(firstUnit, 'temperature');
+                    await loadHeatmapChart(firstUnit, 'temperature');
+                }
+                
+                document.getElementById('analytics-unit')?.addEventListener('change', (e) => {
+                    const unit = e.target.value;
+                    if (unit) {
+                        loadTrends();
+                        loadDistributionChart(unit, document.getElementById('analytics-sensor').value);
+                    }
+                });
+                
+                document.getElementById('analytics-sensor')?.addEventListener('change', (e) => {
+                    const unit = document.getElementById('analytics-unit').value;
+                    if (unit) loadDistributionChart(unit, e.target.value);
+                });
+                
+                document.getElementById('heatmap-unit')?.addEventListener('change', (e) => {
+                    const unit = e.target.value;
+                    const sensor = document.getElementById('heatmap-sensor').value;
+                    if (unit) loadHeatmapChart(unit, sensor);
+                });
+                
+                document.getElementById('heatmap-sensor')?.addEventListener('change', (e) => {
+                    const unit = document.getElementById('heatmap-unit').value;
+                    if (unit) loadHeatmapChart(unit, e.target.value);
+                });
+                
+            } catch (error) {
+                console.error('Erreur analytics:', error);
+            }
+        }
+
+        async function loadTrends() {
+            const unit = document.getElementById('analytics-unit')?.value;
+            const sensor = document.getElementById('analytics-sensor')?.value;
+            const range = document.getElementById('analytics-range')?.value;
+            const interval = document.getElementById('analytics-interval')?.value;
+            
+            if (!unit) {
+                showNotification('Veuillez sélectionner une unité', 'warning');
+                return;
+            }
+            
+            try {
+                const data = await api.getTrends(unit, { interval, range, sensorType: sensor });
+                
+                if (!trendsChart) {
+                    const ctx = document.getElementById('trends-chart')?.getContext('2d');
+                    if (!ctx) return;
+                    
+                    trendsChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [],
+                            datasets: [{
+                                label: `${sensor}`,
+                                data: [],
+                                borderColor: '#00ff00',
+                                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: { unit: interval?.includes('minute') ? 'minute' : 'hour' },
+                                    grid: { color: 'rgba(0, 255, 0, 0.1)' },
+                                    ticks: { color: '#00ff00' }
+                                },
+                                y: {
+                                    grid: { color: 'rgba(0, 255, 0, 0.1)' },
+                                    ticks: { color: '#00ff00' }
+                                }
+                            },
+                            plugins: {
+                                legend: { labels: { color: '#00ff00' } }
+                            }
+                        }
+                    });
+                }
+                
+                if (trendsChart) {
+                    trendsChart.data.labels = data.map(d => d.bucket);
+                    trendsChart.data.datasets = [{
+                        label: `${sensor} - Moyenne`,
+                        data: data.map(d => ({ x: d.bucket, y: d.avg_value })),
+                        borderColor: '#00ff00',
+                        backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                        tension: 0.4
+                    }];
+                    
+                    if (data[0]?.min_value) {
+                        trendsChart.data.datasets.push({
+                            label: 'Min',
+                            data: data.map(d => ({ x: d.bucket, y: d.min_value })),
+                            borderColor: '#00ffff',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        });
+                    }
+                    
+                    if (data[0]?.max_value) {
+                        trendsChart.data.datasets.push({
+                            label: 'Max',
+                            data: data.map(d => ({ x: d.bucket, y: d.max_value })),
+                            borderColor: '#ffff00',
+                            backgroundColor: 'transparent',
+                            borderDash: [5, 5],
+                            pointRadius: 0
+                        });
+                    }
+                    
+                    trendsChart.update();
+                }
+                
+                const stats = document.getElementById('analytics-stats');
+                if (stats && data.length > 0) {
+                    const last = data[0];
+                    stats.innerHTML = `
+                        <div class="info-row">Moyenne: <span class="info-value">${last.avg_value.toFixed(2)}</span></div>
+                        <div class="info-row">Min: <span class="info-value">${last.min_value.toFixed(2)}</span></div>
+                        <div class="info-row">Max: <span class="info-value">${last.max_value.toFixed(2)}</span></div>
+                        <div class="info-row">Écart-type: <span class="info-value">${last.deviation?.toFixed(2) || 'N/A'}</span></div>
+                        <div class="info-row">P95: <span class="info-value">${last.p95?.toFixed(2) || 'N/A'}</span></div>
+                        <div class="info-row">Échantillons: <span class="info-value">${last.sample_count}</span></div>
+                    `;
+                }
+                
+                document.getElementById('analytics-points-count').textContent = `${data.length} points`;
+                
+            } catch (error) {
+                console.error('Erreur chargement tendances:', error);
+            }
+        }
+
+        async function loadAnomalies() {
+            const unit = document.getElementById('analytics-unit')?.value;
+            if (!unit) return;
+            
+            try {
+                const anomalies = await api.getAnomalies(unit, { threshold: 3, range: '1 day' });
+                
+                const list = document.getElementById('anomalies-list');
+                if (!list) return;
+                
+                if (anomalies.length === 0) {
+                    list.innerHTML = '<div class="text-center">Aucune anomalie détectée</div>';
+                } else {
+                    list.innerHTML = anomalies.map(a => `
+                        <div class="alert-item critical" onclick="showAnomalyDetails('${a.time}', '${a.sensor_type}', ${a.value}, ${a.z_score})">
+                            <b>${a.sensor_type}</b><br>
+                            Valeur: ${a.value.toFixed(2)} (z-score: ${a.z_score.toFixed(2)})<br>
+                            <small>${new Date(a.time).toLocaleString()}</small>
+                        </div>
+                    `).join('');
+                }
+                
+                document.getElementById('anomalies-count').textContent = anomalies.length;
+                
+            } catch (error) {
+                console.error('Erreur chargement anomalies:', error);
+            }
+        }
+
+        async function loadPositionHistory() {
+            const unit = document.getElementById('position-unit-filter')?.value;
+            if (!unit) return;
+            
+            try {
+                const positions = await api.getPositionHistory(unit, 50);
+                
+                const list = document.getElementById('position-history-list');
+                if (!list) return;
+                
+                list.innerHTML = positions.map(p => `
+                    <div class="event-item">
+                        <span>${new Date(p.time).toLocaleTimeString()}</span>
+                        <span>📍 ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}</span>
+                        <span>${p.altitude || '--'}m</span>
+                    </div>
+                `).join('');
+                
+                if (missionMap && positions.length > 0) {
+                    const points = positions.map(p => [p.latitude, p.longitude]);
+                    L.polyline(points, { color: '#00ff00', weight: 2, opacity: 0.6 }).addTo(missionMap);
+                    missionMap.fitBounds(points);
+                }
+                
+            } catch (error) {
+                console.error('Erreur chargement historique:', error);
+            }
+        }
+
+        function showAnomalyDetails(time, type, value, zScore) {
+            showAlertPopup(
+                `Anomalie ${type}`,
+                `Valeur: ${value.toFixed(2)}\nZ-score: ${zScore.toFixed(2)}\nHeure: ${new Date(time).toLocaleString()}`,
+                'critical'
+            );
+        }
+
+        // =====================================================
+        // NOUVEAUX GRAPHIQUES
+        // =====================================================
+
+        let distributionChart = null;
+        let radarChart = null;
+        let heatmapChart = null;
+
+        async function loadDistributionChart(unitId, sensorType) {
+            if (!unitId) return;
+            
+            try {
+                const data = await api.getTrends(unitId, { 
+                    interval: '1 hour', 
+                    range: '1 day', 
+                    sensorType 
+                });
+                
+                const ctx = document.getElementById('distribution-chart')?.getContext('2d');
+                if (!ctx) return;
+                
+                if (distributionChart) distributionChart.destroy();
+                
+                distributionChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(d => new Date(d.bucket).toLocaleTimeString()),
+                        datasets: [{
+                            label: sensorType,
+                            data: data.map(d => d.avg_value),
+                            backgroundColor: 'rgba(0, 255, 0, 0.7)',
+                            borderColor: '#00ff00',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { 
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0,255,0,0.1)' },
+                                ticks: { color: '#00ff00' }
+                            },
+                            x: { 
+                                grid: { display: false },
+                                ticks: { 
+                                    color: '#00ff00',
+                                    maxRotation: 45,
+                                    maxTicksLimit: 8
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { labels: { color: '#00ff00' } }
+                        }
+                    }
+                });
+                
+                document.getElementById('distribution-count').textContent = `${data.length} points`;
+                
+            } catch (error) {
+                console.error('Erreur distribution:', error);
+            }
+        }
+
+        async function loadRadarChart() {
+            try {
+                const summary = await api.getSummary();
+                const ctx = document.getElementById('radar-chart')?.getContext('2d');
+                if (!ctx || summary.length === 0) return;
+                
+                if (radarChart) radarChart.destroy();
+                
+                radarChart = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: summary.map(s => s.id),
+                        datasets: [
+                            {
+                                label: 'Température °C',
+                                data: summary.map(s => s.last_temp || 35),
+                                borderColor: '#ff4444',
+                                backgroundColor: 'rgba(255, 68, 68, 0.2)',
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Batterie %',
+                                data: summary.map(s => s.last_battery || 50),
+                                borderColor: '#00ff00',
+                                backgroundColor: 'rgba(0, 255, 0, 0.2)',
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0,255,0,0.2)' },
+                                pointLabels: { color: '#00ff00', font: { size: 10 } },
+                                ticks: { 
+                                    color: '#00ff00',
+                                    backdropColor: 'transparent'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { 
+                                labels: { color: '#00ff00' },
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erreur radar:', error);
+            }
+        }
+
+        async function loadHeatmapChart(unitId, sensorType) {
+            if (!unitId) return;
+            
+            try {
+                const data = await api.getTrends(unitId, { 
+                    interval: '1 hour', 
+                    range: '1 week', 
+                    sensorType 
+                });
+                
+                const ctx = document.getElementById('heatmap-chart')?.getContext('2d');
+                if (!ctx) return;
+                
+                if (heatmapChart) heatmapChart.destroy();
+                
+                const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+                const heatData = [];
+                
+                data.forEach(d => {
+                    const date = new Date(d.bucket);
+                    const day = date.getDay();
+                    const hour = date.getHours();
+                    heatData.push({
+                        x: hour,
+                        y: day,
+                        v: d.avg_value
+                    });
+                });
+                
+                heatmapChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: sensorType,
+                            data: heatData,
+                            backgroundColor: (ctx) => {
+                                const value = ctx.raw.v;
+                                if (!value) return '#000000';
+                                const min = 35;
+                                const max = 39;
+                                const intensity = Math.min(1, Math.max(0, (value - min) / (max - min)));
+                                return `rgba(255, ${255 - intensity*200}, 0, 0.8)`;
+                            },
+                            pointRadius: 15,
+                            pointHoverRadius: 18
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'top',
+                                min: -0.5,
+                                max: 23.5,
+                                ticks: {
+                                    stepSize: 3,
+                                    color: '#00ff00',
+                                    callback: (v) => `${v}h`
+                                },
+                                grid: { color: 'rgba(0,255,0,0.1)' }
+                            },
+                            y: {
+                                type: 'linear',
+                                min: -0.5,
+                                max: 6.5,
+                                ticks: {
+                                    stepSize: 1,
+                                    color: '#00ff00',
+                                    callback: (v) => days[v]
+                                },
+                                grid: { color: 'rgba(0,255,0,0.1)' }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const cell = ctx.raw;
+                                        const day = days[cell.y];
+                                        return `${day} ${cell.x}h: ${cell.v?.toFixed(1)}°C`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erreur heatmap:', error);
+            }
+        }
+
+        // =====================================================
+        // ÉVÉNEMENTS ANALYTIQUES
+        // =====================================================
+        document.getElementById('analytics-refresh')?.addEventListener('click', () => {
+            loadTrends();
+            loadAnomalies();
+        });
+
+        document.getElementById('analytics-unit')?.addEventListener('change', () => {
+            loadTrends();
+            loadAnomalies();
+        });
+
+        document.getElementById('analytics-sensor')?.addEventListener('change', loadTrends);
+        document.getElementById('analytics-range')?.addEventListener('change', loadTrends);
+        document.getElementById('analytics-interval')?.addEventListener('change', loadTrends);
+        document.getElementById('load-position-history')?.addEventListener('click', loadPositionHistory);
+        document.getElementById('position-unit-filter')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadPositionHistory();
+        });
+// =====================================================
+// BOUTONS DU TABLEAU DE BORD - CORRECTIONS
+// =====================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔧 Attachement des boutons du tableau de bord...');
+    
+    // BOUTON : Supprimer les anciennes alertes
+    const clearAlertsBtn = document.getElementById('clear-old-alerts-btn');
+    if (clearAlertsBtn) {
+        clearAlertsBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            console.log('🧹 Nettoyage des alertes...');
+            try {
+                const result = await api.request('/alerts/clear-old', { method: 'POST' });
+                showAlertPopup('ALERTES', `${result.count || 0} alertes archivées`, 'success');
+                await loadAllData();
+            } catch (error) {
+                console.error('❌ Erreur nettoyage:', error);
+                showAlertPopup('ALERTES', 'Erreur lors du nettoyage', 'error');
+            }
+        });
+    }
+    
+    // RECHERCHE TABLEAU DE BORD
+    const dashSearch = document.getElementById('dashboard-search');
+    if (dashSearch) {
+        dashSearch.addEventListener('input', function(e) {
+            const term = e.target.value.toLowerCase();
+            filterUnits(term);
+        });
+    }
+});
+        // =====================================================
+        // INITIALISATION FINALE
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initialisation FAT-C4ISR...');
+            
+            initAudio();
+            initMaps();
+            initRadar();
+            initMissionTab();
+            setupDashboardSearch();
+            createAlertsPanel();
+            initSimulationControls();
+            
+            setTimeout(() => selectNetwork('5G'), 100);
+            
+            document.getElementById('login-btn').addEventListener('click', () => {
+                playMilitaryBeep(1200, 0.2);
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+                document.getElementById('user-name').textContent = 'Georges Donnavan';
+                document.getElementById('user-role').textContent = 'ADMIN · EN LIGNE';
+                login();
+            });
+
+            document.getElementById('logout-btn')?.addEventListener('click', () => {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('app').style.display = 'none';
+                if (wsConnection) wsConnection.close();
+            });
+            
+            // Cacher loading
+            setTimeout(() => {
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.opacity = '0';
+                    setTimeout(() => loading.style.display = 'none', 500);
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

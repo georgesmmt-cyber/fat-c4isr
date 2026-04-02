@@ -1,0 +1,612 @@
+/* =====================================================
+   FAT-C4ISR - THÈME CYBERPUNK MILITAIRE
+   Niveau: CONFIDENTIEL
+   ===================================================== */
+
+:root {
+    --neon-green: #0f0;
+    --neon-green-dim: #0a0;
+    --neon-green-glow: rgba(0, 255, 0, 0.5);
+    --dark-bg: #0a0a0a;
+    --terminal-black: #1a1a1a;
+    --alert-red: #ff4444;
+    --danger-orange: #ff8800;
+    --warning-yellow: #ffcc00;
+    --info-blue: #00aaff;
+    --grid-color: rgba(0, 255, 0, 0.1);
+}
+
+/* =====================================================
+   BARRES DE DÉFILEMENT CYBERPUNK
+   ===================================================== */
+
+.cyber-scroll::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.cyber-scroll::-webkit-scrollbar-track {
+    background: var(--terminal-black);
+    border: 1px solid var(--neon-green);
+    box-shadow: inset 0 0 5px var(--neon-green-glow);
+}
+
+.cyber-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #0f0, #0a0);
+    border-radius: 0;
+    box-shadow: 0 0 10px var(--neon-green-glow);
+    border: 1px solid var(--neon-green);
+}
+
+.cyber-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, #0f0, #0f0);
+    box-shadow: 0 0 15px var(--neon-green);
+}
+
+.cyber-scroll::-webkit-scrollbar-corner {
+    background: var(--terminal-black);
+}
+
+/* Indicateurs de défilement */
+.scroll-indicator {
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 30px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.scroll-indicator.top {
+    top: 0;
+    background: linear-gradient(180deg, 
+        rgba(0, 255, 0, 0.2) 0%, 
+        transparent 100%);
+}
+
+.scroll-indicator.bottom {
+    bottom: 0;
+    background: linear-gradient(0deg, 
+        rgba(0, 255, 0, 0.2) 0%, 
+        transparent 100%);
+}
+
+/* =====================================================
+   ONGLETS NÉON
+   ===================================================== */
+
+.tab-container {
+    display: flex;
+    background: var(--terminal-black);
+    border-bottom: 2px solid var(--neon-green);
+    padding: 10px 20px 0;
+    gap: 5px;
+}
+
+.tab-item {
+    padding: 12px 24px;
+    color: var(--neon-green);
+    font-family: 'Orbitron', monospace;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    position: relative;
+    transition: all 0.3s ease;
+    font-size: 12px;
+    background: transparent;
+}
+
+.tab-item:hover {
+    background: rgba(0, 255, 0, 0.1);
+    border-color: var(--neon-green);
+    box-shadow: 0 -2px 10px var(--neon-green-glow);
+}
+
+.tab-item.active {
+    background: rgba(0, 255, 0, 0.15);
+    border: 1px solid var(--neon-green);
+    border-bottom: 2px solid var(--terminal-black);
+    margin-bottom: -2px;
+}
+
+.tab-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--terminal-black);
+}
+
+/* =====================================================
+   POP-UP D'ALERTE
+   ===================================================== */
+
+.alert-popup {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    min-width: 350px;
+    max-width: 450px;
+    background: var(--terminal-black);
+    border: 2px solid;
+    padding: 16px;
+    z-index: 9999;
+    animation: slideIn 0.3s ease;
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+.alert-popup.critical {
+    border-color: var(--alert-red);
+    animation: pulseRed 1s infinite;
+}
+
+.alert-popup.danger {
+    border-color: var(--danger-orange);
+}
+
+.alert-popup.warning {
+    border-color: var(--warning-yellow);
+}
+
+.alert-popup.info {
+    border-color: var(--info-blue);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulseRed {
+    0% { box-shadow: 0 0 30px var(--alert-red); }
+    50% { box-shadow: 0 0 50px var(--alert-red); }
+    100% { box-shadow: 0 0 30px var(--alert-red); }
+}
+
+/* =====================================================
+   GRILLE RADAR
+   ===================================================== */
+
+.radar-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.radar-sweep {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(0, 255, 0, 0.2) 50%, 
+        transparent 100%);
+    transform-origin: 0 0;
+    animation: sweep 4s linear infinite;
+}
+
+@keyframes sweep {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* =====================================================
+   WIDGETS MODULAIRES
+   ===================================================== */
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 20px;
+    padding: 20px;
+    height: 100%;
+}
+
+.widget {
+    background: rgba(0, 20, 0, 0.8);
+    border: 1px solid var(--neon-green);
+    backdrop-filter: blur(5px);
+    padding: 15px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+    transition: all 0.3s ease;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.widget:hover {
+    box-shadow: 0 0 30px var(--neon-green-glow);
+    transform: translateY(-2px);
+}
+
+.widget::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        var(--neon-green), 
+        transparent
+    );
+    animation: scanLine 4s linear infinite;
+}
+
+.widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--neon-green);
+    font-family: 'Orbitron', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 14px;
+}
+
+.widget-header .badge {
+    background: var(--neon-green);
+    color: var(--dark-bg);
+    padding: 2px 8px;
+    font-size: 10px;
+    border-radius: 0;
+}
+
+.widget-content {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+}
+
+/* Tailles de widgets */
+.widget.col-3 { grid-column: span 3; }
+.widget.col-4 { grid-column: span 4; }
+.widget.col-6 { grid-column: span 6; }
+.widget.col-8 { grid-column: span 8; }
+.widget.col-12 { grid-column: span 12; }
+
+.widget.row-2 { grid-row: span 2; }
+.widget.row-3 { grid-row: span 3; }
+
+/* =====================================================
+   UNITÉS ET STATUTS
+   ===================================================== */
+
+.unit-card {
+    border: 1px solid var(--neon-green);
+    padding: 10px;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: all 0.3s;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+}
+
+.unit-card:hover {
+    background: rgba(0, 255, 0, 0.1);
+    border-color: var(--neon-green);
+    box-shadow: 0 0 15px var(--neon-green-glow);
+}
+
+.unit-avatar {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--neon-green);
+    border-radius: 50%;
+    position: relative;
+}
+
+.unit-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.unit-status-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--terminal-black);
+}
+
+.unit-status-indicator.online {
+    background: var(--neon-green);
+    box-shadow: 0 0 10px var(--neon-green);
+}
+
+.unit-status-indicator.offline {
+    background: var(--alert-red);
+    box-shadow: 0 0 10px var(--alert-red);
+}
+
+.unit-status-indicator.warning {
+    background: var(--warning-yellow);
+    box-shadow: 0 0 10px var(--warning-yellow);
+}
+
+.unit-info {
+    font-size: 12px;
+}
+
+.unit-name {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.unit-battery {
+    margin-top: 5px;
+}
+
+/* =====================================================
+   BARRES DE PROGRESSION
+   ===================================================== */
+
+.progress-container {
+    background: #111;
+    border: 1px solid var(--neon-green);
+    height: 8px;
+    width: 100%;
+    margin: 5px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--neon-green);
+    width: 0%;
+    transition: width 0.3s;
+    box-shadow: 0 0 10px var(--neon-green);
+    position: relative;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.3), 
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.progress-bar.critical {
+    background: var(--alert-red);
+    box-shadow: 0 0 10px var(--alert-red);
+}
+
+.progress-bar.warning {
+    background: var(--warning-yellow);
+    box-shadow: 0 0 10px var(--warning-yellow);
+}
+
+/* =====================================================
+   TABLEAU DE BORD RÉSEAU
+   ===================================================== */
+
+.network-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.network-item {
+    border: 1px solid var(--neon-green);
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.network-item:hover {
+    background: rgba(0, 255, 0, 0.1);
+    box-shadow: 0 0 15px var(--neon-green-glow);
+}
+
+.network-item.selected {
+    background: rgba(0, 255, 0, 0.2);
+    border-width: 2px;
+}
+
+.network-type {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.network-status {
+    font-size: 10px;
+    margin-top: 5px;
+}
+
+.network-status.online {
+    color: var(--neon-green);
+}
+
+.network-status.offline {
+    color: var(--alert-red);
+}
+
+/* =====================================================
+   JOURNAL D'ÉVÉNEMENTS
+   ===================================================== */
+
+.event-log {
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.event-entry {
+    padding: 5px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+    display: grid;
+    grid-template-columns: 80px 60px 1fr;
+    gap: 10px;
+}
+
+.event-time {
+    color: var(--neon-green);
+    opacity: 0.7;
+}
+
+.event-type {
+    color: var(--info-blue);
+    text-transform: uppercase;
+}
+
+.event-message.critical {
+    color: var(--alert-red);
+}
+
+.event-message.danger {
+    color: var(--danger-orange);
+}
+
+.event-message.warning {
+    color: var(--warning-yellow);
+}
+
+/* =====================================================
+   OUTILS CARTOGRAPHIQUES
+   ===================================================== */
+
+.map-tools {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: rgba(0, 20, 0, 0.9);
+    border: 2px solid var(--neon-green);
+    padding: 10px;
+    display: flex;
+    gap: 5px;
+    backdrop-filter: blur(5px);
+}
+
+.map-tool-btn {
+    background: transparent;
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.3s;
+}
+
+.map-tool-btn:hover {
+    background: var(--neon-green);
+    color: var(--dark-bg);
+    box-shadow: 0 0 15px var(--neon-green);
+}
+
+.map-tool-btn.active {
+    background: var(--neon-green);
+    color: var(--dark-bg);
+}
+
+/* =====================================================
+   ANIMATIONS GLOBALES
+   ===================================================== */
+
+@keyframes scanLine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes blink {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0.3; }
+}
+
+/* =====================================================
+   LIGNE DE BALAYAGE GLOBALE
+   ===================================================== */
+
+.global-scan {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        var(--neon-green), 
+        transparent
+    );
+    animation: globalScan 8s linear infinite;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.5;
+}
+
+@keyframes globalScan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+.network-item {
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+
+.network-item:hover {
+    background: rgba(0, 255, 0, 0.1);
+    border-color: var(--neon-green);
+}
+
+.network-item.selected {
+    background: rgba(0, 255, 0, 0.2);
+    border-color: var(--neon-green);
+    border-width: 2px;
+}
+
+.event-item {
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+    font-size: 12px;
+}

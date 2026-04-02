@@ -1,0 +1,650 @@
+Absolument ! Votre système est parfaitement architecturé pour passer du mode DEV (simulation) au mode PROD (capteurs physiques ESP32). Voici comment ça va fonctionner :
+🎯 ARCHITECTURE DE TRANSITION DEV → PROD
+text
+
+MODE DÉVELOPPEMENT (actuel)          MODE PRODUCTION (futur)
+─────────────────────────────────────────────────────────────────
+Simulation automatique      →    Capteurs physiques ESP32
+Toutes les 10s              →    Temps réel (websocket/MQTT)
+Données aléatoires          →    Données réelles des gilets
+Alertes simulées            →    Alertes basées sur seuils réels
+
+1. CE QUI NE CHANGE PAS (déjà prêt)
+
+✅ Base de données TimescaleDB - Les hypertables sont déjà optimisées pour les données temps réel
+✅ Structure des tables - sensor_readings, gps_positions, alerts sont parfaites
+✅ API Endpoints - /api/sensor/reading accepte déjà les données
+✅ Interface utilisateur - Tous les affichages sont dynamiques
+2. NOUVEAU FICHIER : Bridge ESP32 → Backend
+
+Créez server/esp32-bridge.js :
+javascript
+
+// server/esp32-bridge.js
+// Pont de communication entre les ESP32 et le backend
+
+const WebSocket = require('ws');
+const mqtt = require('mqtt');
+const postgres = require('../src/main/database/postgres');
+
+class ESP32Bridge {
+    constructor() {
+        this.espDevices = new Map(); // Stocke les ESP32 connectés
+        this.wsServer = null;
+        this.mqttClient = null;
+    }
+
+    // =====================================================
+    // 1. MODE WEBSOCKET (pour tests WiFi)
+    // =====================================================
+    startWebSocketServer(port = 8080) {
+        this.wsServer = new WebSocket.Server({ port });
+        
+        console.log(`🔄 Serveur WebSocket ESP32 démarré sur le port ${port}`);
+        
+        this.wsServer.on('connection', (ws, req) => {
+            const espId = req.url.split('/').pop() || 'unknown';
+            console.log(`📡 ESP32 connecté: ${espId}`);
+            
+            // Enregistrer l'ESP32
+            this.espDevices.set(espId, {
+                ws,
+                lastSeen: new Date(),
+                vestId: null
+            });
+            
+            // Recevoir les données des capteurs
+            ws.on('message', async (data) => {
+                try {
+                    const message = JSON.parse(data.toString());
+                    await this.processSensorData(espId, message);
+                } catch (error) {
+                    console.error('❌ Erreur traitement message ESP32:', error);
+                }
+            });
+            
+            // Gérer la déconnexion
+            ws.on('close', () => {
+                console.log(`📡 ESP32 déconnecté: ${espId}`);
+                this.espDevices.delete(espId);
+            });
+            
+            // Envoyer une confirmation
+            ws.send(JSON.stringify({
+                type: 'connection',
+                status: 'connected',
+                timestamp: new Date().toISOString()
+            }));
+        });
+    }
+
+    // =====================================================
+    // 2. MODE MQTT (recommandé pour ESP32)
+    // =====================================================
+    connectMQTT(brokerUrl = 'mqtt://localhost:1883') {
+        this.mqttClient = mqtt.connect(brokerUrl, {
+            username: process.env.MQTT_USER,
+            password: process.env.MQTT_PASS
+        });
+        
+        this.mqttClient.on('connect', () => {
+            console.log('✅ Connecté au broker MQTT');
+            
+            // S'abonner aux topics des capteurs
+            this.mqttClient.subscribe('fat/+/sensor/+', (err) => {
+                if (!err) {
+                    console.log('📡 Abonné aux topics capteurs');
+                }
+            });
+            
+            this.mqttClient.subscribe('fat/+/gps', (err) => {
+                if (!err) {
+                    console.log('📡 Abonné aux topics GPS');
+                }
+            });
+        });
+        
+        this.mqttClient.on('message', async (topic, message) => {
+            try {
+                const parts = topic.split('/');
+                // topic format: fat/{vestId}/sensor/{sensorType}
+                // ou: fat/{vestId}/gps
+                
+                if (parts.length >= 3) {
+                    const vestId = parts[1];
+                    const dataType = parts[2];
+                    const payload = JSON.parse(message.toString());
+                    
+                    if (dataType === 'gps') {
+                        await this.processGPSData(vestId, payload);
+                    } else if (dataType === 'sensor' && parts[3]) {
+                        const sensorType = parts[3];
+                        await this.processSensorData(vestId, {
+                            type: sensorType,
+                            ...payload
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erreur traitement MQTT:', error);
+            }
+        });
+    }
+
+    // =====================================================
+    // 3. TRAITEMENT DES DONNÉES CAPTEURS
+    // =====================================================
+    async processSensorData(vestId, data) {
+        try {
+            // Structure attendue des ESP32
+            const reading = {
+                vestId,
+                sensorType: data.type || data.sensorType,
+                value: data.value,
+                unit: data.unit || this.getDefaultUnit(data.type),
+                batteryLevel: data.battery || data.batteryLevel,
+                signalStrength: data.rssi || data.signalStrength
+            };
+            
+            // Insérer dans TimescaleDB
+            const result = await postgres.query(`
+                INSERT INTO sensor_readings 
+                (vest_id, sensor_type, value, unit, health, battery_level, signal_strength)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *
+            `, [
+                vestId,
+                reading.sensorType,
+                reading.value,
+                reading.unit,
+                this.determineHealth(reading.sensorType, reading.value),
+                reading.batteryLevel || Math.floor(Math.random() * 100),
+                reading.signalStrength || Math.floor(Math.random() * 100)
+            ]);
+            
+            // Vérifier les seuils d'alerte
+            await this.checkThresholds(vestId, reading.sensorType, reading.value);
+            
+            // Mettre à jour le cache
+            this.updateDeviceCache(vestId, reading);
+            
+            console.log(`✅ Donnée ${reading.sensorType} de ${vestId}: ${reading.value}${reading.unit}`);
+            
+            return result.rows[0];
+            
+        } catch (error) {
+            console.error('❌ Erreur traitement donnée capteur:', error);
+        }
+    }
+
+    // =====================================================
+    // 4. TRAITEMENT DES DONNÉES GPS
+    // =====================================================
+    async processGPSData(vestId, gpsData) {
+        try {
+            const { lat, lng, altitude, accuracy, speed, heading } = gpsData;
+            
+            const result = await postgres.query(`
+                INSERT INTO gps_positions 
+                (vest_id, latitude, longitude, altitude, accuracy, speed, heading)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *
+            `, [vestId, lat, lng, altitude, accuracy, speed, heading]);
+            
+            // Mettre à jour la position sur la carte
+            this.broadcastPosition(vestId, { lat, lng, altitude });
+            
+            return result.rows[0];
+            
+        } catch (error) {
+            console.error('❌ Erreur traitement GPS:', error);
+        }
+    }
+
+    // =====================================================
+    // 5. FONCTIONS UTILITAIRES
+    // =====================================================
+    
+    getDefaultUnit(sensorType) {
+        const units = {
+            'temperature': '°C',
+            'heart_rate': 'BPM',
+            'spo2': '%',
+            'battery': '%',
+            'signal': '%',
+            'pressure': 'hPa',
+            'altitude': 'm'
+        };
+        return units[sensorType] || '';
+    }
+    
+    determineHealth(sensorType, value) {
+        switch(sensorType) {
+            case 'temperature':
+                if (value > 38) return 'critical';
+                if (value > 37.5) return 'warning';
+                return 'normal';
+            case 'heart_rate':
+                if (value > 100 || value < 50) return 'critical';
+                return 'normal';
+            case 'spo2':
+                if (value < 90) return 'critical';
+                if (value < 95) return 'warning';
+                return 'normal';
+            case 'battery':
+                if (value < 20) return 'critical';
+                if (value < 50) return 'warning';
+                return 'normal';
+            default:
+                return 'normal';
+        }
+    }
+    
+    async checkThresholds(vestId, sensorType, value) {
+        let alertType = null;
+        let severity = null;
+        let message = null;
+        
+        switch(sensorType) {
+            case 'temperature':
+                if (value > 38) {
+                    alertType = 'temperature';
+                    severity = 'critical';
+                    message = `🔥 Température critique: ${value.toFixed(1)}°C sur ${vestId}`;
+                } else if (value > 37.5) {
+                    alertType = 'temperature';
+                    severity = 'warning';
+                    message = `⚠️ Température élevée: ${value.toFixed(1)}°C sur ${vestId}`;
+                }
+                break;
+                
+            case 'heart_rate':
+                if (value > 100) {
+                    alertType = 'heart_rate';
+                    severity = 'critical';
+                    message = `💓 Tachycardie: ${value.toFixed(0)} BPM sur ${vestId}`;
+                } else if (value < 50) {
+                    alertType = 'heart_rate';
+                    severity = 'critical';
+                    message = `💓 Bradycardie: ${value.toFixed(0)} BPM sur ${vestId}`;
+                }
+                break;
+                
+            case 'battery':
+                if (value < 20) {
+                    alertType = 'battery';
+                    severity = 'critical';
+                    message = `🔋 Batterie critique: ${value.toFixed(0)}% sur ${vestId}`;
+                } else if (value < 50) {
+                    alertType = 'battery';
+                    severity = 'warning';
+                    message = `🔋 Batterie faible: ${value.toFixed(0)}% sur ${vestId}`;
+                }
+                break;
+        }
+        
+        if (alertType) {
+            await postgres.query(`
+                INSERT INTO alerts (vest_id, alert_type, severity, message)
+                VALUES ($1, $2, $3, $4)
+            `, [vestId, alertType, severity, message]);
+            
+            // Broadcast alerte en temps réel
+            this.broadcastAlert({ vestId, alertType, severity, message });
+        }
+    }
+    
+    updateDeviceCache(vestId, reading) {
+        const device = this.espDevices.get(vestId) || { lastReadings: {} };
+        device.lastReadings = {
+            ...device.lastReadings,
+            [reading.sensorType]: {
+                value: reading.value,
+                timestamp: new Date()
+            }
+        };
+        device.lastSeen = new Date();
+        this.espDevices.set(vestId, device);
+    }
+    
+    // Broadcast en temps réel via WebSocket aux clients web
+    broadcastPosition(vestId, position) {
+        if (this.wsServer) {
+            this.wsServer.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        type: 'position_update',
+                        vestId,
+                        position,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            });
+        }
+    }
+    
+    broadcastAlert(alert) {
+        if (this.wsServer) {
+            this.wsServer.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({
+                        type: 'new_alert',
+                        ...alert,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            });
+        }
+    }
+    
+    // Statistiques des ESP32 connectés
+    getStats() {
+        return {
+            connectedDevices: this.espDevices.size,
+            devices: Array.from(this.espDevices.entries()).map(([id, data]) => ({
+                id,
+                lastSeen: data.lastSeen,
+                lastReadings: data.lastReadings
+            }))
+        };
+    }
+}
+
+module.exports = new ESP32Bridge();
+
+3. CODE ESP32 POUR LES GILETS
+cpp
+
+// ESP32_Gilet.ino - Code pour les gilets tactiques
+
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <TinyGPS++.h>
+#include <Wire.h>
+#include <Adafruit_MLX90614.h> // Capteur température infrarouge
+#include <MAX30105.h>           // Capteur oxymètre
+
+// =====================================================
+// CONFIGURATION
+// =====================================================
+const char* ssid = "FAT-C4ISR-NET";
+const char* password = "fat123456";
+const char* mqtt_server = "192.168.1.100"; // IP du serveur
+const char* vestId = "VEST-001"; // À changer pour chaque gilet
+
+// Capteurs
+TinyGPSPlus gps;
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+MAX30105 particleSensor;
+
+// Clients
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+// =====================================================
+// INITIALISATION
+// =====================================================
+void setup() {
+  Serial.begin(115200);
+  
+  // Connexion WiFi
+  setupWiFi();
+  
+  // Configuration MQTT
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+  
+  // Initialisation capteurs
+  setupSensors();
+}
+
+void setupWiFi() {
+  Serial.print("🔌 Connexion à ");
+  Serial.println(ssid);
+  
+  WiFi.begin(ssid, password);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  
+  Serial.println("\n✅ WiFi connecté");
+  Serial.print("📡 IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void setupSensors() {
+  // Capteur température
+  if (!mlx.begin()) {
+    Serial.println("❌ Erreur MLX90614");
+  }
+  
+  // Capteur oxymètre
+  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) {
+    Serial.println("❌ Erreur MAX30105");
+  }
+  
+  // Configuration MAX30105
+  byte ledBrightness = 0x7F;
+  byte sampleAverage = 4;
+  byte ledMode = 2;
+  byte sampleRate = 100;
+  int pulseWidth = 411;
+  int adcRange = 4096;
+  
+  particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange);
+}
+
+// =====================================================
+// BOUCLE PRINCIPALE
+// =====================================================
+void loop() {
+  if (!client.connected()) {
+    reconnectMQTT();
+  }
+  client.loop();
+  
+  // Lire les capteurs toutes les secondes
+  static unsigned long lastRead = 0;
+  if (millis() - lastRead > 1000) {
+    lastRead = millis();
+    readAndSendSensors();
+  }
+  
+  // Lire le GPS toutes les 5 secondes
+  static unsigned long lastGPS = 0;
+  if (millis() - lastGPS > 5000) {
+    lastGPS = millis();
+    readAndSendGPS();
+  }
+}
+
+// =====================================================
+// LECTURE ET ENVOI DES DONNÉES
+// =====================================================
+void readAndSendSensors() {
+  // Température corporelle
+  float temp = mlx.readObjectTempC();
+  sendSensorData("temperature", temp, "°C");
+  
+  // Oxymétrie
+  long irValue = particleSensor.getIR();
+  float spo2 = calculateSpO2(irValue); // À implémenter
+  sendSensorData("spo2", spo2, "%");
+  
+  // Rythme cardiaque
+  float heartRate = calculateHeartRate(); // À implémenter
+  sendSensorData("heart_rate", heartRate, "BPM");
+  
+  // Batterie
+  float battery = (analogRead(34) / 4095.0) * 100; // Exemple
+  sendSensorData("battery", battery, "%");
+}
+
+void readAndSendGPS() {
+  while (Serial2.available() > 0) {
+    gps.encode(Serial2.read());
+  }
+  
+  if (gps.location.isValid()) {
+    String gpsData = "{";
+    gpsData += "\"lat\":" + String(gps.location.lat(), 6) + ",";
+    gpsData += "\"lng\":" + String(gps.location.lng(), 6) + ",";
+    gpsData += "\"altitude\":" + String(gps.altitude.meters(), 1) + ",";
+    gpsData += "\"speed\":" + String(gps.speed.kmph()) + ",";
+    gpsData += "\"heading\":" + String(gps.course.deg());
+    gpsData += "}";
+    
+    String topic = String("fat/") + vestId + "/gps";
+    client.publish(topic.c_str(), gpsData.c_str());
+    
+    Serial.println("📍 Position envoyée");
+  }
+}
+
+void sendSensorData(String type, float value, String unit) {
+  String data = "{";
+  data += "\"value\":" + String(value) + ",";
+  data += "\"unit\":\"" + unit + "\",";
+  data += "\"battery\":" + String(getBatteryLevel());
+  data += "}";
+  
+  String topic = String("fat/") + vestId + "/sensor/" + type;
+  client.publish(topic.c_str(), data.c_str());
+  
+  Serial.println("📊 " + type + ": " + String(value) + unit);
+}
+
+float getBatteryLevel() {
+  // Lire le niveau de batterie
+  return (analogRead(34) / 4095.0) * 100;
+}
+
+// =====================================================
+// MQTT
+// =====================================================
+void reconnectMQTT() {
+  while (!client.connected()) {
+    Serial.print("📡 Connexion MQTT...");
+    
+    if (client.connect(vestId)) {
+      Serial.println("✅ connecté");
+      
+      // S'abonner aux commandes
+      String cmdTopic = String("fat/") + vestId + "/cmd";
+      client.subscribe(cmdTopic.c_str());
+      
+    } else {
+      Serial.print("❌ échec, rc=");
+      Serial.print(client.state());
+      Serial.println(" nouvelle tentative dans 5s");
+      delay(5000);
+    }
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("📨 Commande reçue: ");
+  Serial.println(topic);
+  
+  // Traiter les commandes (ex: led on/off, buzzer, etc.)
+  String command = "";
+  for (int i = 0; i < length; i++) {
+    command += (char)payload[i];
+  }
+  
+  if (command == "LED_ON") {
+    digitalWrite(2, HIGH); // Allumer LED
+  } else if (command == "LED_OFF") {
+    digitalWrite(2, LOW);
+  }
+}
+
+// =====================================================
+// FONCTIONS DE CALCUL (à implémenter avec bibliothèques)
+// =====================================================
+float calculateSpO2(long irValue) {
+  // Utiliser la bibliothèque MAX30105 pour calculer SpO2
+  return 98.5; // Valeur simulée
+}
+
+float calculateHeartRate() {
+  // Calculer le rythme cardiaque
+  return 72.0; // Valeur simulée
+}
+
+4. ACTIVATION DU MODE PRODUCTION
+
+Dans dev-server.js, ajoutez :
+javascript
+
+// =====================================================
+// MODE PRODUCTION - ACTIVATION CAPTEURS PHYSIQUES
+// =====================================================
+const esp32Bridge = require('./esp32-bridge');
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+    console.log('🏭 MODE PRODUCTION ACTIVÉ - Capteurs physiques ESP32');
+    
+    // Désactiver la simulation automatique
+    if (simulationInterval) {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+    }
+    
+    // Activer le pont ESP32
+    esp32Bridge.connectMQTT(process.env.MQTT_BROKER);
+    esp32Bridge.startWebSocketServer(8080);
+    
+    // Route pour les stats ESP32
+    app.get('/api/esp32/stats', requireRole('SUPERVISOR'), (req, res) => {
+        res.json(esp32Bridge.getStats());
+    });
+} else {
+    console.log('💻 MODE DÉVELOPPEMENT - Simulation active');
+}
+
+5. FICHIER DE CONFIGURATION PRODUCTION
+
+Créez .env.production :
+env
+
+# Mode production
+NODE_ENV=production
+
+# Base de données
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=fat_c4isr
+PGUSER=fat_admin
+PGPASSWORD=fat123
+
+# MQTT pour ESP32
+MQTT_BROKER=mqtt://localhost:1883
+MQTT_USER=fat_mqtt
+MQTT_PASS=fat_mqtt_2026
+
+# Sécurité
+JWT_SECRET=changez-moi-en-production-2026
+
+6. COMMENT PASSER DE DEV À PROD
+bash
+
+# Mode développement (actuel)
+npm run dev
+
+# Mode production (avec ESP32)
+NODE_ENV=production npm start
+
+# Ou avec PM2 pour la production
+pm2 start server/dev-server.js --env production --name "fat-c4isr"
+
+✅ CE QUI EST MAINTENANT POSSIBLE
+En DEV	En PROD
+Simulation automatique toutes les 10s	Données réelles des ESP32 en temps réel
+Données aléatoires	Mesures précises des capteurs
+Alertes simulées	Alertes basées sur vrais seuils médicaux
+Position aléatoire	Position GPS réelle
+Tests d'interface	Tests terrain avec vrais gilets

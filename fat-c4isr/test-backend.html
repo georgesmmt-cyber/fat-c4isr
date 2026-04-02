@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Backend</title>
+</head>
+<body>
+    <h1>Test Connexion Backend</h1>
+    <div id="result"></div>
+    
+    <script>
+        async function testAll() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Test en cours...<br>';
+            
+            // Test 1: Health
+            try {
+                const health = await fetch('http://localhost:5001/api/health');
+                const data = await health.json();
+                result.innerHTML += `✅ Health: ${JSON.stringify(data)}<br>`;
+            } catch(e) {
+                result.innerHTML += `❌ Health: ${e}<br>`;
+            }
+            
+            // Test 2: Login
+            try {
+                const login = await fetch('http://localhost:5001/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'GeorgesD', password: 'admin12345' })
+                });
+                const data = await login.json();
+                result.innerHTML += `✅ Login: ${data.success ? 'OK' : 'FAIL'}<br>`;
+                if (data.token) {
+                    result.innerHTML += `✅ Token reçu<br>`;
+                    
+                    // Test 3: Vests avec token
+                    const vests = await fetch('http://localhost:5001/api/vests', {
+                        headers: { 'Authorization': `Bearer ${data.token}` }
+                    });
+                    const vestsData = await vests.json();
+                    result.innerHTML += `✅ Vests: ${vestsData.length} unités<br>`;
+                }
+            } catch(e) {
+                result.innerHTML += `❌ Login: ${e}<br>`;
+            }
+        }
+        
+        testAll();
+    </script>
+</body>
+</html>

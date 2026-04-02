@@ -1,0 +1,74 @@
+# FAT-C4ISR Configuration
+NODE_ENV=development
+DEV_PORT=5001
+PROD_PORT=5002
+
+# PostgreSQL
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=fat_c4isr
+PGUSER=fat_admin
+PGPASSWORD=fat123
+
+# Sécurité (à changer en production)
+SESSION_SECRET=dev_secret_key_123
+JWT_SECRET=jwt_secret_key_456
+
+
+
+
+2.	Connecte-toi avec :
+o	Identifiant : GeorgesD
+o	Mot de passe : admin12345
+o	Code 2FA : 123456
+
+
+
+entrer dans conteneur 
+
+docker exec -it fat-postgis bash
+
+entrer dasn psql
+
+psql -U fat_admin -d fat_c4isr
+
+ PGADMIN_DEFAULT_EMAIL: admin@fat.mil
+      PGADMIN_DEFAULT_PASSWORD: admin123
+
+SERVEUR DANS PGADMIN
+
+Une fois connecté, suivez ces étapes :
+
+    Clic droit sur "Servers" → "Register" → "Server..."
+
+    Onglet "General" :
+
+        Name: FAT-C4ISR (ou le nom que vous voulez)
+
+    Onglet "Connection" :
+
+        Host name/address: fat-postgis (nom du conteneur)
+
+        Port: 5432
+
+        Maintenance database: fat_c4isr
+
+        Username: fat_admin
+
+        Password: fat123
+
+        Cochez "Save password?"
+
+
+# PostgreSQL
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=fat_c4isr
+PGUSER=fat_admin
+PGPASSWORD=fat123
+
+
+supabase project: FAT-C4ISR
+PWD:PWD:Thankslord1&) ou PWD%3AThankslord1%26%29
+
+

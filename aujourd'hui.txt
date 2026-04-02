@@ -1,0 +1,19 @@
+QUELLE ÉTAPE VOUS INTÉRESSE LE PLUS ?
+
+    Déploiement en production (HTTPS, PM2)
+
+    Amélioration des graphiques (temps réel)
+
+    Sécurité renforcée (2FA, rate limiting)
+
+    Optimisation des performances (cache, compression)
+
+    Application mobile
+
+    IA et prédictions
+
+    Tests automatisés
+
+    Documentation
+
+Dites-moi par où vous voulez commencer ! 😊

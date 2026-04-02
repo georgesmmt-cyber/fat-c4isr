@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: fat-postgis
+    environment:
+      POSTGRES_USER: fat_admin
+      POSTGRES_PASSWORD: fat123
+      POSTGRES_DB: fat_c4isr
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: fat-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@fat.mil
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
